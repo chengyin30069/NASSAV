@@ -5,10 +5,10 @@
 </div>
 
 <div align="center">
-  <img src="https://img.shields.io/github/stars/satoing/nassav?style=for-the-badge&color=FF69B4" alt="Stars">
-  <img src="https://img.shields.io/github/forks/satoing/nassav?style=for-the-badge&color=FF69B4" alt="Forks">
-  <img src="https://img.shields.io/github/issues/satoing/nassav?style=for-the-badge&color=FF69B4" alt="Issues">
-  <img src="https://img.shields.io/github/license/satoing/nassav?style=for-the-badge&color=FF69B4" alt="License">
+  <img src="https://img.shields.io/github/stars/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="Stars">
+  <img src="https://img.shields.io/github/forks/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="Forks">
+  <img src="https://img.shields.io/github/issues/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="Issues">
+  <img src="https://img.shields.io/github/license/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="License">
 </div>
 
 ```text

@@ -35,6 +35,7 @@ class MissAVMetaDataScraper:
                 proxies=self.proxies,
                 headers=self.headers,
                 timeout=self.timeout,
+                impersonate="chrome110",  # 可选：chrome, chrome110, edge99, safari15_5
             )
             response.raise_for_status()
             return response.text
@@ -116,7 +117,7 @@ class MissAVMetaDataScraper:
     @staticmethod
     def _get_highest_quality_m3u8(playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
-            response = requests.get(playlist_url, timeout=10)
+            response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
             response.raise_for_status()
             playlist_content = response.text
             
@@ -211,7 +212,7 @@ class AssertDownloader:
     def _download_file(self, url: str, filename: str) -> bool:
         """通用下载方法"""
         try:
-            response = requests.get(url, stream=True)
+            response = requests.get(url, stream=True, impersonate="chrome110")
             response.raise_for_status()
             
             with open(os.path.join(self.path, filename), 'wb') as f:

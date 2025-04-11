@@ -72,13 +72,15 @@ if __name__ == "__main__":
                 # 保存db
                 data.batch_insert_bvids([missav.identity], downloaded_path, "MissAV")
                 logger.info(f"{missav.identity} 记录到小姐姐数据库")
-
+            # 生成nfo
+            metadata.gen_nfo()
         else:
-            logger.error(f"视频下载失败：{missav.identity}")
-            with open(queue_path, 'a') as f:
-                f.write(f'{missav.identity}\n')
-        # 生成nfo
-        metadata.gen_nfo()
+            raise ValueError("视频下载失败，请检查代理！")
+
+    except:
+        logger.error(f"视频下载失败：{no}")
+        with open(queue_path, 'a') as f:
+            f.write(f'{no.upper()}\n')
 
     finally:
         with open("work", "w") as f:

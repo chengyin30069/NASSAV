@@ -1,8 +1,8 @@
 <div align="center">
 <img style="max-width:50%;" src="pic/logo.png" alt="NASSAV" />
-<br>
+<!-- <br>
   <img style="max-width:50%;" src="pic/subtitle.svg" alt="你的NAS伴侣~" />
-</div>
+</div> -->
 
 <div align="center">
   <img src="https://img.shields.io/github/stars/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="Stars">
@@ -11,8 +11,8 @@
   <img src="https://img.shields.io/github/license/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="License">
 </div>
 
-```text
-✨ 一点碎碎念
+```
+✨ 碎碎念
 
 装好NAS后，本lsp心心念念想要搭建一个”学习资料“影视库，奈何现有的玩法都不太好用。第一是资料下载，磁力下载遇到老的资源就下不动了；二是元数据获取，之前尝试过metatube，但是时有抽风，说实话也不太好用。
 

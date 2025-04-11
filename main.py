@@ -32,16 +32,19 @@ if __name__ == "__main__":
     try:
         scraper = api.MissAVMetaDataScraper(proxy=myproxy)
         # 优先获取无码版本，清晰度最高
-        missav = scraper.scrape(f'https://{domain}/cn/{no}-uncensored-leak'.lower())
+        url = f'https://{domain}/cn/{no}-uncensored-leak'.lower()
+        missav = scraper.scrape(url)
         if missav is None:
             # 其次尝试获取字幕版本
-            missav = scraper.scrape(f'https://{domain}/cn/{no}-chinese-subtitle'.lower())
+            url = f'https://{domain}/cn/{no}-chinese-subtitle'.lower()
+            missav = scraper.scrape(url)
         if missav is None:
             # 最后尝试获取原版
-            missav = scraper.scrape(f'https://{domain}/cn/{no}'.lower())
+            url = f'https://{domain}/cn/{no}'.lower()
+            missav = scraper.scrape(url)
         if missav is None:
             logger.error("请检查网络代理！如果网络没有问题，那么是车牌号不在missav中")
-            exit(-1)
+            raise ValueError("网络连接有问题，请检查代理！")
 
         logger.info(missav)
 

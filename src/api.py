@@ -375,7 +375,7 @@ class NfoGenerator:
 if __name__ == "__main__":
     scraper = MissAVMetaDataScraper()
     # 测试抓取
-    sample_url = "https://missav.ai/cn/mfo-077"
+    sample_url = f"https://{domain}/cn/mfo-077"
     if result := scraper.scrape(sample_url):
         logger.debug("抓取成功:")
         logger.debug(result)

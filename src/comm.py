@@ -27,9 +27,13 @@ logger.add(
 save_path = configs["SavePath"]
 downloaded_path = configs["DBPath"]
 queue_path = configs["QueuePath"]
+myproxy = configs["proxy"]
+if myproxy == "":
+    myproxy = None
+domain = configs["MissAVDomain"]
 
-# https://missav.ai/dm14/cn/fpre-017-uncensored-leak
-# https://missav.ai/dm14/cn/FPRE-017-uncensored-leak
+logger.info(f"load config succ: \nsave_path: {save_path}\ndownloaded_path: {downloaded_path}\n\
+            queue_path: {queue_path}\nproxy: {myproxy}\ndomain: {domain}")
 
 # 数据结构定义
 @dataclass

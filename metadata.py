@@ -35,9 +35,9 @@ def gen_nfo():
             continue
 
         print(folder)
-        scraper = api.MissAVMetaDataScraper()
-        print(f"url=https://missav.ai/cn/{folder}")
-        missav = scraper.scrape(f'https://missav.ai/cn/{folder}'.lower())
+        scraper = api.MissAVMetaDataScraper(proxy=myproxy)
+        print(f"url=https://{domain}/cn/{folder}")
+        missav = scraper.scrape(f'https://{domain}/cn/{folder}'.lower())
         logger.info(missav)
 
         # 保存元数据

@@ -1,8 +1,8 @@
 <div align="center">
 <img style="max-width:50%;" src="pic/logo.png" alt="NASSAV" />
-<!-- <br>
-  <img style="max-width:50%;" src="pic/subtitle.svg" alt="你的NAS伴侣~" />
-</div> -->
+<br>
+  <!-- <img style="max-width:50%;" src="pic/subtitle.svg" alt="你的NAS伴侣~" /> -->
+</div>
 
 <div align="center">
   <img src="https://img.shields.io/github/stars/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="Stars">

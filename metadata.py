@@ -24,7 +24,7 @@ def has_nfo_file(folder_path):
 
 def gen_nfo():
     folders = list_folders(save_path)
-    data.batch_insert_bvids(folders) # 多点脏数据也无所谓
+    data.batch_insert_bvids(folders, downloaded_path, "MissAV") # 多点脏数据也无所谓
     for folder in folders:
         if folder == "thumb":
             continue
@@ -71,5 +71,5 @@ def gen_nfo():
         time.sleep(5)
 
 if __name__ == "__main__":
-    data.initialize_db()
+    data.initialize_db(downloaded_path, "MissAV")
     gen_nfo()

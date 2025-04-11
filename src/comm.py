@@ -33,7 +33,7 @@ if myproxy == "":
 domain = configs["MissAVDomain"]
 
 logger.info(f"load config succ: \nsave_path: {save_path}\ndownloaded_path: {downloaded_path}\n\
-            queue_path: {queue_path}\nproxy: {myproxy}\ndomain: {domain}")
+queue_path: {queue_path}\nproxy: {myproxy}\ndomain: {domain}")
 
 # 数据结构定义
 @dataclass

@@ -11,10 +11,16 @@ if __name__ == "__main__":
         sys.exit(1)
 
     no = sys.argv[1].upper()
-    # 判断车牌号是不是已存在
-    if data.find_in_db(no, downloaded_path, "MissAV"):
-        logger.info(f"{no} 已在小姐姐数据库中")
-        exit(0)
+
+    checkdb = True
+    if len(sys.argv) > 2 and sys.argv[2] == "-f":
+            checkdb = False
+    if checkdb:
+        # 判断车牌号是不是已存在
+        if data.find_in_db(no, downloaded_path, "MissAV"):
+            logger.info(f"{no} 已在小姐姐数据库中")
+            exit(0)
+            
     logger.info(f"开始执行 车牌号: {no}")
 
     # 文件锁实现全局下载单例
@@ -47,6 +53,8 @@ if __name__ == "__main__":
             raise ValueError("网络连接有问题，请检查代理！")
 
         logger.info(missav)
+        if missav.m3u8 == "":
+            raise ValueError("没有找到视频下载链接，请切换节点再尝试。")
 
         # 保存元数据
         meta_path = os.path.join(save_path, missav.identity ,'metadata.json')

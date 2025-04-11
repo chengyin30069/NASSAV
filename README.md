@@ -100,6 +100,16 @@
 
 命令行会输出日志，如果使用crontab后台执行，可以观察日志输出：logs/2025-04-10.log。
 
+### 启动http服务
+
+支持的下载方式：
+1. 直接执行`python main.py <车牌号>`
+2. 在db/download_queue.txt中按行增加要下载的车牌号，crontab定时执行cron_task.sh `20 * * * * cd /home/xxx/missav;bash cron_task.sh`，执行前最好cd到代码所在目录。
+
+再提供第三个下载方式：远程控制
+
+启动server/main后，往`http:127.0.0.1:49530/process`发送post请求，post体里面带上车牌号，即可开始下载；如果已经在下载了，则加到download_queue.txt中。
+
 ## 项目结构
 ```
 MissAV/

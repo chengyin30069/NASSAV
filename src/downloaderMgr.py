@@ -1,5 +1,5 @@
 from .downloaderBase import Downloader
-# import jableDownloder
+from .jableDownloder import JableDownloader
 from .missAVDownloader import MissAVDownloader
 from .comm import *
 from typing import Optional
@@ -9,7 +9,10 @@ class DownloaderMgr:
 
     def __init__(self):
         # 注册handler
-        downloader = MissAVDownloader(save_path, myproxy, missavDomain=domain)
+        downloader = MissAVDownloader(save_path, myproxy)
+        self.downloaders[downloader.getDownloaderName()] = downloader
+
+        downloader = JableDownloader(save_path, myproxy)
         self.downloaders[downloader.getDownloaderName()] = downloader
     
     def GetDownloader(self, downloaderName: str) -> Optional[Downloader]:

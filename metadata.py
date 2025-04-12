@@ -1,9 +1,9 @@
 # 批量生成 metadata.json和nfo
-from src import api
 from src.comm import *
 from src import data
 import os
 import time
+from src import downloaderMgr
 
 def list_folders(path):
     """返回指定路径下的所有文件夹名称"""
@@ -24,7 +24,6 @@ def has_nfo_file(folder_path):
 
 def gen_nfo():
     folders = list_folders(save_path)
-    data.batch_insert_bvids(folders, downloaded_path, "MissAV") # 多点脏数据也无所谓
     for folder in folders:
         if folder == "thumb":
             continue
@@ -35,39 +34,23 @@ def gen_nfo():
             continue
 
         print(folder)
-        scraper = api.MissAVMetaDataScraper(proxy=myproxy)
-        print(f"url=https://{domain}/cn/{folder}")
-        missav = scraper.scrape(f'https://{domain}/cn/{folder}'.lower())
-        logger.info(missav)
 
-        # 保存元数据
-        print("保存元数据")
-        meta_path = os.path.join(save_path, missav.identity ,'metadata.json')
-        print(f"元数据保存到: {meta_path}")
-        missav.to_json(meta_path)
+        mgr = downloaderMgr.DownloaderMgr()
+        downloader = mgr.GetDownloader("MissAV")
+        print(downloader.getDownloaderName())
 
-        # 保存图片
-        print("保存图片")
-        path = os.path.join(save_path, missav.identity)
-        downloader = api.AssertDownloader(path)
-        downloader.ImgDownloader(missav.cover, prefix=f"{folder}-")
+        metadata = downloader.downloadMetaData(folder)
+        if not metadata:
+            logger.error(f"{folder} get metadata failed")
+            continue
+        if not downloader.downloadIMG(metadata):
+            logger.error(f"{folder} download img failed")
+            continue
+        if not downloader.genNFO(metadata):
+            logger.error(f"{folder} gen nfo failed")
+            continue
 
-        # 保存小姐姐头像
-        print("保存头像")
-        avatar_path = os.path.join(save_path, "thumb")
-        downloader = api.AssertDownloader(avatar_path)
-        os.makedirs(path, exist_ok=True)
-        for av in missav.actress:
-            print(av)
-            if os.path.exists(os.path.join(avatar_path, av)):
-                continue
-            downloader._download_file(missav.actress[av], av+".jpg")
-
-        # 保存nfo
-        print("保存nfo")
-        nfoGenerator = api.NfoGenerator(os.path.join(save_path, missav.identity))
-        nfoGenerator.GenXML()
-
+        data.batch_insert_bvids([folder], downloaded_path, "MissAV") # 多点脏数据也无所谓
         time.sleep(5)
 
 if __name__ == "__main__":

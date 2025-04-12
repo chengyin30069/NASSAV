@@ -3,20 +3,44 @@ from src.comm import *
 from src import data
 import sys
 import metadata
+import argparse
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process some parameters.")
+    
+    parser.add_argument('-f', '--force', action='store_true', help='跳过DB检查，强制执行')
+    parser.add_argument('-p', '--plugin', type=str, help='指定下载插件，MissAV、Jable...')
+    parser.add_argument('-t', '--target', type=str, help='指定车牌号')
+    
+    args, unknown = parser.parse_known_args()
+    if not args and not unknown:
+        logger.error(f"Error: Unknown arguments are not allowed: {args, unknown}")
+        sys.exit(1)
+    
+    # 获取位置参数
+    positional_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
+    
+    if len(positional_args) == 1:
+        args.target = positional_args[0]
+    elif len(positional_args) > 1:
+        logger.error("位置参数只能传入一个车牌号")
+        sys.exit(1)
+    elif args.target is None:
+        logger.error("需要提供车牌号")
+        sys.exit(1)
+    
+    logger.info(f"Force: {args.force}")
+    logger.info(f"Plugin: {args.plugin}")
+    logger.info(f"Target: {args.target}")
+
     data.initialize_db(downloaded_path, "MissAV")
     if len(sys.argv) < 2:
         print("用法: python main.py <车牌号>")
         sys.exit(1)
 
-    no = sys.argv[1].upper()
+    no = args.target.upper()
 
-    checkdb = True
-    if len(sys.argv) > 2 and sys.argv[2] == "-f":
-            checkdb = False
-    if checkdb:
-        # 判断车牌号是不是已存在
+    if not args.force:
         if data.find_in_db(no, downloaded_path, "MissAV"):
             logger.info(f"{no} 已在小姐姐数据库中")
             exit(0)

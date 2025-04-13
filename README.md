@@ -103,6 +103,37 @@
 如果不想校验db（如实现洗版），将第二个参数设置成-f即可强制下载。即执行 `python3 main.py SVGAL-009 -f`
 但是最后还是会提示重复，是否覆盖。
 
+### 自定义数据源优先级
+
+在配置中定义了各个下载器的优先级，程序会根据权重从大到小，依次尝试使用对应下载器进行加载。如果想要禁用某个下载器，将对应的权重置为0。
+
+```json
+"Downloader": [
+    {
+        "downloaderName": "MissAV",
+        "domain": "missav.ai",
+        "weight": 150
+    },
+    {
+        "downloaderName": "Jable",
+        "domain": "jable.tv",
+        "weight": 200
+    },
+    {
+        "downloaderName": "HohoJ",
+        "domain": "hohoj.tv",
+        "weight": 250
+    }
+]
+```
+
+数据源说明：
+1. MissAv：内容很全，无码破解优先，清晰度一般（720p-1080p），反爬没那么严格
+2. Jable：内容很全，中文字幕优先，清晰度高（1080p），但是反爬比较严格
+3. Hohoj：内容较全，中文字幕有限，清晰度高（1080p），基本没有反爬
+
+综上，把Hohoj作为优先级最高的下载器，其次Jable，最后MissAV。元数据都从MissAV获取。
+
 ### 启动http服务
 
 支持的下载方式：

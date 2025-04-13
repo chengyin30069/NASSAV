@@ -95,6 +95,7 @@ if __name__ == "__main__":
                 if count >= len(sorted_downloaders):
                     raise ValueError(f"{avid} 下载元数据失败")
                 continue
+            logger.info(metadata)
             if not downloader.downloadM3u8(metadata.m3u8, avid):
                 logger.error(f"{metadata.m3u8} 下载视频失败")
                 if count >= len(sorted_downloaders):

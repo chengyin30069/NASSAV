@@ -85,7 +85,10 @@ class Downloader(ABC):
 
     @abstractmethod
     def parseHTML(self, html: str, avid: str) -> Optional[AVMetadata]:
-        '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
+        '''
+        需要实现的方法：根据html，解析出元数据，返回AVMetadata
+        注意：实现新的downloader，只需要获取到m3u8就行了(也可以多匹配点方便调试)，元数据统一使用MissAV
+        '''
         pass
     
     def downloadMetaData(self, avid: str) -> Optional[AVMetadata]:

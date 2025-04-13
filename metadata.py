@@ -37,6 +37,7 @@ def gen_nfo():
 
         mgr = downloaderMgr.DownloaderMgr()
         downloader = mgr.GetDownloader("MissAV")
+        downloader.setDomain(missAVDomain)
         print(downloader.getDownloaderName())
 
         metadata = downloader.downloadMetaData(folder)

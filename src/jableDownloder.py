@@ -2,10 +2,6 @@ from .downloaderBase import *
 import re
 
 class JableDownloader(Downloader):
-    def __init__(self, path: str, proxy = None, timeout = 15, jableDomain = "jable.tv"):
-        super().__init__(path, proxy, timeout)
-        self.domain = jableDomain
-
     def getDownloaderName(self) -> str:
         return "Jable"
 
@@ -36,16 +32,6 @@ class JableDownloader(Downloader):
             return None
 
         return missavMetadata
-
-    @staticmethod
-    def _extract_uuid(html: str) -> Optional[str]:
-        try:
-            if match := re.search(r"m3u8\|([a-f0-9\|]+)\|com\|surrit\|https\|video", html):
-                return "-".join(match.group(1).split("|")[::-1])
-            return None
-        except Exception as e:
-            logger.error(f"UUID提取异常: {str(e)}")
-            return None
 
     @staticmethod
     def _extract_metadata(html: str, metadata: AVMetadata) -> bool:

@@ -74,6 +74,12 @@ class Downloader(ABC):
             'https': proxy
         } if proxy else None
         self.timeout = timeout
+    
+    def setDomain(self, domain: str) -> bool:
+        if domain:  
+            self.domain = domain
+            return True
+        return False
 
     @abstractmethod
     def getDownloaderName(self) -> str:
@@ -214,12 +220,15 @@ class Downloader(ABC):
             logger.error(f"下载失败: {e}")
             return False
     
-    def _fetch_html(self, url: str) -> Optional[str]:
+    def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         try:
+            newHeader = headers
+            if referer:
+                newHeader["Referer"] = referer
             response = requests.get(
                 url,
                 proxies=self.proxies,
-                headers=headers,
+                headers=newHeader,
                 timeout=self.timeout,
                 impersonate="chrome110",  # 可选：chrome, chrome110, edge99, safari15_5
             )

@@ -31,8 +31,14 @@ myproxy = configs["Proxy"]
 if myproxy == "":
     myproxy = None
 sorted_downloaders = sorted(
-    configs["Downloader"],
+    [downloader for downloader in configs["Downloader"] if downloader["weight"] != 0],
     key=lambda x: x["weight"],
     reverse=True  # 降序排序
 )
 print(sorted_downloaders)
+missAVDomain = ""
+for downloader in sorted_downloaders:
+    if downloader["downloaderName"] == "MissAV":
+        missAVDomain = downloader["domain"]
+        break
+print(f"missav domain: {missAVDomain}")

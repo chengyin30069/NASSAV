@@ -1,6 +1,7 @@
 from .downloaderBase import Downloader
 from .jableDownloder import JableDownloader
 from .missAVDownloader import MissAVDownloader
+from .hohoJDownloader import HohoJDownloader
 from .comm import *
 from typing import Optional
 
@@ -13,6 +14,9 @@ class DownloaderMgr:
         self.downloaders[downloader.getDownloaderName()] = downloader
 
         downloader = JableDownloader(save_path, myproxy)
+        self.downloaders[downloader.getDownloaderName()] = downloader
+
+        downloader = HohoJDownloader(save_path, myproxy)
         self.downloaders[downloader.getDownloaderName()] = downloader
     
     def GetDownloader(self, downloaderName: str) -> Optional[Downloader]:

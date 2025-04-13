@@ -82,6 +82,9 @@ if __name__ == "__main__":
         for it in sorted_downloaders:
             count += 1
             downloader = mgr.GetDownloader(it["downloaderName"])
+            if not downloader.setDomain(it["domain"]): # 设置成配置中的域名
+                logger.error(f"下载器 {downloader.getDownloaderName()} 的域名没有配置")
+                continue
             if downloader is None:
                 logger.error(f"下载器{args.plugin} 没有找到")
                 raise ValueError(f"下载器{args.plugin} 没有找到")
@@ -105,6 +108,7 @@ if __name__ == "__main__":
         # 元数据只尝试下载一次，且只使用MissAV
         if lastDownloader.getDownloaderName() != "MissAV":
             downloader = mgr.GetDownloader("MissAV")
+            downloader.setDomain(missAVDomain)
             metadata = downloader.downloadMetaData(avid)
         if not metadata:
             logger.error(f"{avid} 下载元数据失败")

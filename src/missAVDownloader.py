@@ -3,10 +3,6 @@ import re
 from typing import Optional, Tuple
 
 class MissAVDownloader(Downloader):
-    def __init__(self, path: str, proxy = None, timeout = 15, missavDomain = "missav.ai"):
-        super().__init__(path, proxy, timeout)
-        self.domain = missavDomain
-
     def getDownloaderName(self) -> str:
         return "MissAV"
 
@@ -162,6 +158,7 @@ class MissAVDownloader(Downloader):
                         metadata.actress[actress] = img
                     else:
                         logger.error("未匹配到内容")
+                    time.sleep(5)
                 except:
                     logger.error(f"演员信息:{url} 提取失败")
                     continue

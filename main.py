@@ -104,6 +104,7 @@ if __name__ == "__main__":
                 if count >= len(sorted_downloaders):
                     raise ValueError(f"{metadata.m3u8} 下载视频失败")
                 continue
+            break
             
         # 元数据只尝试下载一次，且只使用MissAV
         if lastDownloader.getDownloaderName() != "MissAV":

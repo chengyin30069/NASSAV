@@ -178,4 +178,26 @@ MissAV/
 ```
 
 ## 欢迎lsp们一起维护
+
+新增新的下载器：参考`hohoJDownloader`。需要做的其实很简单：
+
+1. 继承Downloader基类，实现其中的`getDownloaderName`、`getHTML`、`parseHTML`方法
+2. 在`DownloadMgr`中注册这个下载器
+3. 在config.json中新增这个下载器的配置，定义域名和下载器的权重
+
+```python
+class HohoJDownloader(Downloader):
+    def getDownloaderName(self) -> str:
+        '''downloader名字，和配置中保持一致'''
+        pass
+
+    def getHTML(self, avid: str) -> Optional[str]:
+        '''根据车牌号，获取到parseHTML所需的html'''
+        pass
+
+    def parseHTML(self, html: str) -> Optional[AVMetadata]:
+        '''需要实现的方法：根据html，解析出元数据（主要是m3u8链接），返回AVMetadata'''
+        pass
+```
+
 ![](pic/IMG_5150.JPG)

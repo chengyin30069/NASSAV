@@ -11,6 +11,7 @@ from .comm import *
 from curl_cffi import requests
 from PIL import Image
 from datetime import datetime
+import time
 
 @dataclass
 class AVMetadata:
@@ -27,7 +28,7 @@ class AVMetadata:
     def __str__(self):
         return (
             f"=== 元数据详情 ===\n"
-            f"番号: {self.identity or '未知'}\n"
+            f"番号: {self.avid or '未知'}\n"
             f"标题: {self.title or '未知'}\n"
             f"演员: {self.actress or '未知'}\n"
             f"描述: {self.description or '无'}\n"
@@ -98,7 +99,6 @@ class Downloader(ABC):
         print(os.path.join(self.path, avid))
         os.makedirs(os.path.join(self.path, avid), exist_ok=True)
         html = self.getHTML(avid)
-        print(html)
         if not html:
             logger.error("获取html失败")
             return None
@@ -152,12 +152,13 @@ class Downloader(ABC):
             return False
         # 检查演员是否存在，不存在则下载图像
         for av, url in metadata.actress.items():
-            print(av)
+            logger.debug(av)
             # 判断是否已经存在
             if os.path.exists(os.path.join(os.path.join(self.path, "thumb", av+".jpg"))):
                 continue
             if self._download_file(url, av+".jpg"): # 下载失败，跳过
                 continue
+            time.sleep(5)
         return True
 
     def genNFO(self, metadata: AVMetadata) -> bool:
@@ -222,7 +223,6 @@ class Downloader(ABC):
                 timeout=self.timeout,
                 impersonate="chrome110",  # 可选：chrome, chrome110, edge99, safari15_5
             )
-            print(response.text)
             response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:

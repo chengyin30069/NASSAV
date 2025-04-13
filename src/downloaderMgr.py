@@ -8,7 +8,7 @@ class DownloaderMgr:
     downloaders: dict = {}
 
     def __init__(self):
-        # 注册handler
+        # 手动注册handler
         downloader = MissAVDownloader(save_path, myproxy)
         self.downloaders[downloader.getDownloaderName()] = downloader
 

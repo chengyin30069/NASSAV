@@ -28,6 +28,7 @@ save_path = configs["SavePath"]
 downloaded_path = configs["DBPath"]
 queue_path = configs["QueuePath"]
 myproxy = configs["Proxy"]
+isNeedVideoProxy = configs["IsNeedVideoProxy"]
 if myproxy == "":
     myproxy = None
 sorted_downloaders = sorted(

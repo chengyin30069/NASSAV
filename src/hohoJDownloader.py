@@ -16,10 +16,13 @@ class HohoJDownloader(Downloader):
         content = self._fetch_html(searchUrl)
         if not content: return None
 
+        first_id = None  # 初始化为默认值
         match = re.search(r'[?&]id=(\d+)', content)
         if match:
             first_id = match.group(1)
             logger.info(first_id)
+        if not first_id:
+            return None
         videoUrl = f"https://hohoj.tv/embed?id={first_id}"
         logger.debug(videoUrl)
         content = self._fetch_html(videoUrl, referer=f"https://hohoj.tv/video?id={first_id}")

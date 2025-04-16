@@ -4,21 +4,22 @@
     "DBPath": "./db/downloaded.db",
     "QueuePath": "./db/download_queue.txt",
     "Proxy": "http://127.0.0.1:7897",
+    "IsNeedVideoProxy": true,
     "Downloader": [
         {
             "downloaderName": "MissAV",
             "domain": "missav.ai",
-            "weight": 150
+            "weight": 350
         },
         {
             "downloaderName": "Jable",
             "domain": "jable.tv",
-            "weight": 200
+            "weight": 300
         },
         {
             "downloaderName": "HohoJ",
             "domain": "hohoj.tv",
-            "weight": 250
+            "weight": 0
         }
     ]
 }

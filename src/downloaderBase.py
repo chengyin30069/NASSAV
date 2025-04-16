@@ -128,13 +128,25 @@ class Downloader(ABC):
         """m3u8视频下载"""
         os.makedirs(os.path.dirname(os.path.join(self.path, avid)), exist_ok=True)
         try:
-            if self.proxy:
+            if isNeedVideoProxy and self.proxy:
+                logger.info("使用代理")
                 command = f"'{project_root}/tools/m3u8-Downloader-Go' -u {url} -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
             else:
+                logger.info("不使用代理")
                 command = f"'{project_root}/tools/m3u8-Downloader-Go' -u {url} -o {os.path.join(self.path, avid, avid+'.ts')}"
             logger.debug(command)
             if os.system(command) != 0:
-                return False
+                # 难顶。。。使用代理下载失败，尝试不用代理；不用代理下载失败，尝试使用代理
+                if not self.proxy:
+                    logger.info("尝试使用代理")
+                    command = f"'{project_root}/tools/m3u8-Downloader-Go' -u {url} -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
+                else:
+                    logger.info("尝试不使用代理")
+                    command = f"'{project_root}/tools/m3u8-Downloader-Go' -u {url} -o {os.path.join(self.path, avid, avid+'.ts')}"
+                logger.debug(f"retry {command}")
+                if os.system(command) != 0:
+                    return False
+            
             # 转mp4
             convert = f"ffmpeg -i {os.path.join(self.path, avid, avid+'.ts')} -c copy -f mp4 {os.path.join(self.path, avid, avid+'.mp4')}"
             logger.debug(convert)

@@ -4,12 +4,12 @@
     "DBPath": "./db/downloaded.db",
     "QueuePath": "./db/download_queue.txt",
     "Proxy": "http://127.0.0.1:7897",
-    "IsNeedVideoProxy": true,
+    "IsNeedVideoProxy": false,
     "Downloader": [
         {
             "downloaderName": "MissAV",
             "domain": "missav.ai",
-            "weight": 350
+            "weight": 150
         },
         {
             "downloaderName": "Jable",

@@ -38,8 +38,8 @@ sorted_downloaders = sorted(
 )
 print(sorted_downloaders)
 missAVDomain = ""
-for downloader in sorted_downloaders:
+for downloader in configs["Downloader"]:
     if downloader["downloaderName"] == "MissAV":
         missAVDomain = downloader["domain"]
         break
-print(f"missav domain: {missAVDomain}")
+logger.info(f"missav domain: {missAVDomain}")

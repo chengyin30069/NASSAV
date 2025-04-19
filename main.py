@@ -113,10 +113,11 @@ if __name__ == "__main__":
             metadata = downloader.downloadMetaData(avid)
         if not metadata:
             logger.error(f"{avid} 下载元数据失败")
-        if not downloader.downloadIMG(metadata):
-            logger.error(f"{metadata.m3u8} 图片下载失败")
-        if not downloader.genNFO(metadata):
-            logger.error(f"{metadata.m3u8} nfo生成失败")
+        else:
+            if not downloader.downloadIMG(metadata):
+                logger.error(f"{metadata.m3u8} 图片下载失败")
+            if not downloader.genNFO(metadata):
+                logger.error(f"{metadata.m3u8} nfo生成失败")
             
     except ValueError as e:
         logger.error(e)

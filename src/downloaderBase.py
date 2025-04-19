@@ -137,7 +137,7 @@ class Downloader(ABC):
             logger.debug(command)
             if os.system(command) != 0:
                 # 难顶。。。使用代理下载失败，尝试不用代理；不用代理下载失败，尝试使用代理
-                if not self.proxy:
+                if not isNeedVideoProxy and self.proxy:
                     logger.info("尝试使用代理")
                     command = f"'{project_root}/tools/m3u8-Downloader-Go' -u {url} -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
                 else:

@@ -10,9 +10,6 @@ def decode_url(encoded_url):
         return None
 
 class MemoDownloader(Downloader):
-    def __init__(self, path: str, proxy = None, timeout = 15):
-        super().__init__(path, proxy, timeout)
-
     def getDownloaderName(self) -> str:
         return "Memo"
 
@@ -24,10 +21,10 @@ class MemoDownloader(Downloader):
         if not content: return None
         return content
 
-    def parseHTML(self, html: str) -> Optional[AVMetadata]:
+    def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
         logger.debug(html)
-        missavMetadata: AVMetadata = AVMetadata()
+        missavMetadata = AVDownloadInfo()
         pattern = r'"url":"(https?%3A%2F%2F[^"]+)"'
         match = re.search(pattern, html)
         if match:

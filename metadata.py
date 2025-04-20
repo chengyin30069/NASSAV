@@ -3,7 +3,7 @@ from src.comm import *
 from src import data
 import os
 import time
-from src import downloaderMgr
+from src.scraper import Sracper
 
 def list_folders(path):
     """返回指定路径下的所有文件夹名称"""
@@ -29,28 +29,18 @@ def gen_nfo():
         if folder == "thumb":
             continue
 
-        # 检查文件夹中是否有.nfo文件
-        if has_nfo_file(os.path.join(save_path, folder)):
-            print(f"已有nfo: {folder}")
+        # # 检查文件夹中是否有.nfo文件
+        # if has_nfo_file(os.path.join(save_path, folder)):
+        #     print(f"已有nfo: {folder}")
+        #     continue
+        if os.path.exists(f"{folder}.html"):
+            print(f"已刮削: {folder}")
             continue
 
         print(folder)
+        scraper = Sracper(save_path, myproxy)
+        scraper.scrape(folder)
 
-        mgr = downloaderMgr.DownloaderMgr()
-        downloader = mgr.GetDownloader("MissAV")
-        downloader.setDomain(missAVDomain)
-        print(downloader.getDownloaderName())
-
-        metadata = downloader.downloadMetaData(folder)
-        if not metadata:
-            logger.error(f"{folder} get metadata failed")
-            continue
-        if not downloader.downloadIMG(metadata):
-            logger.error(f"{folder} download img failed")
-            continue
-        if not downloader.genNFO(metadata):
-            logger.error(f"{folder} gen nfo failed")
-            continue
         time.sleep(5)
 
 if __name__ == "__main__":

@@ -1,9 +1,8 @@
 from src import downloaderMgr
-from src import downloaderBase
+from src.downloader import downloaderBase
 from src.comm import *
 from src import data
 import sys
-import metadata
 import argparse
 
 def append_if_not_duplicate(filename, new_content):
@@ -92,32 +91,22 @@ if __name__ == "__main__":
             lastDownloader = downloader
 
             # 下载失败使用下一个downloader
-            metadata = downloader.downloadMetaData(avid)
-            if not metadata:
+            info = downloader.downloadInfo(avid)
+            if not info:
                 logger.error(f"{avid} 下载元数据失败")
                 if count >= len(sorted_downloaders):
                     raise ValueError(f"{avid} 下载元数据失败")
                 continue
-            logger.info(metadata)
-            if not downloader.downloadM3u8(metadata.m3u8, avid):
-                logger.error(f"{metadata.m3u8} 下载视频失败")
+            logger.info(info)
+            if not downloader.downloadM3u8(info.m3u8, avid):
+                logger.error(f"{info.m3u8} 下载视频失败")
                 if count >= len(sorted_downloaders):
-                    raise ValueError(f"{metadata.m3u8} 下载视频失败")
+                    raise ValueError(f"{info.m3u8} 下载视频失败")
                 continue
             break
             
-        # 元数据只尝试下载一次，且只使用MissAV
-        if lastDownloader.getDownloaderName() != "MissAV":
-            downloader = mgr.GetDownloader("MissAV")
-            downloader.setDomain(missAVDomain)
-            metadata = downloader.downloadMetaData(avid)
-        if not metadata:
-            logger.error(f"{avid} 下载元数据失败")
-        else:
-            if not downloader.downloadIMG(metadata):
-                logger.error(f"{metadata.m3u8} 图片下载失败")
-            if not downloader.genNFO(metadata):
-                logger.error(f"{metadata.m3u8} nfo生成失败")
+        # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
+        
             
     except ValueError as e:
         logger.error(e)

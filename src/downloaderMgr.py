@@ -1,8 +1,8 @@
-from .downloaderBase import Downloader
-from .jableDownloder import JableDownloader
-from .missAVDownloader import MissAVDownloader
-from .hohoJDownloader import HohoJDownloader
-from .memoDownloader import MemoDownloader
+from .downloader.downloaderBase import Downloader
+from .downloader.jableDownloder import JableDownloader
+from .downloader.missAVDownloader import MissAVDownloader
+from .downloader.hohoJDownloader import HohoJDownloader
+from .downloader.memoDownloader import MemoDownloader
 from .comm import *
 from typing import Optional
 

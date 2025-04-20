@@ -22,9 +22,9 @@ class MissAVDownloader(Downloader):
 
         return None
 
-    def parseHTML(self, html: str) -> Optional[AVMetadata]:
+    def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
-        missavMetadata: AVMetadata = AVMetadata()
+        missavMetadata = AVDownloadInfo()
 
         # 1. 提取m3u8
         if uuid := self._extract_uuid(html):
@@ -61,14 +61,10 @@ class MissAVDownloader(Downloader):
             return None
 
     @staticmethod
-    def _extract_metadata(html: str, metadata: AVMetadata) -> bool:
+    def _extract_metadata(html: str, metadata: AVDownloadInfo) -> bool:
         try:
             # 提取OG标签
             og_title = re.search(r'<meta property="og:title" content="(.*?)"', html)
-            og_desc = re.search(r'<meta property="og:description" content="(.*?)"', html)
-            og_image = re.search(r'<meta property="og:image" content="(.*?)"', html)
-            og_duration = re.search(r'<meta property="og:video:duration" content="(\d+)"', html)
-            og_date = re.search(r'<meta property="og:video:release_date" content="(.*?)"', html)
 
             if og_title: # 处理标题和番号
                 title_content = og_title.group(1)
@@ -77,28 +73,7 @@ class MissAVDownloader(Downloader):
                     metadata.title = title_content.replace(metadata.avid, '').strip()
                 else:
                     metadata.title = title_content.strip()
-            
-            # 处理原标题
-            matches_group = re.search(r'<span>标题:</span>\s*<span class="font-medium">(.+)</span>', html)
-            if matches_group:
-                metadata.origional_title = matches_group.group(1)
-                logger.debug(metadata.origional_title)
-
-            # 其他直接映射的字段
-            if og_desc:
-                metadata.description = og_desc.group(1).strip()
-            if og_image:
-                metadata.cover = og_image.group(1).strip()
-
-            # 处理视频时长（秒转分钟）
-            if og_duration:
-                seconds = int(og_duration.group(1))
-                metadata.duration = f"{seconds // 60}分{seconds % 60}秒"
-
-            # 处理发布日期
-            if og_date:
-                metadata.release_date = og_date.group(1).strip()
-
+        
         except Exception as e:
             logger.error(f"元数据解析异常: {str(e)}")
             return False
@@ -138,28 +113,3 @@ class MissAVDownloader(Downloader):
         except Exception as e:
             logger.error(f"获取最高质量流失败: {str(e)}")
             return None
-        
-    def _extract_actress(self, html: str, metadata: AVMetadata):
-        '''没有找到，跳过而不是返回'''
-        # 提取演员信息元数据
-        matches = re.findall(r'<span>女优:</span>\s*<a.*</a>', html)
-        for match in matches:
-            urls = re.findall(r'<a href="([^"]+)"[^>]*>', match)
-            for url in urls:
-                try: 
-                    logger.debug(url)
-                    content = self._fetch_html(url)
-                    pattern = r'<img\s+src="(https://fourhoi\.com/actress/[^"]+)"\s+alt="([^"]+)"'
-                    match_group = re.search(pattern, content)
-                    if match_group:
-                        img = match_group.group(1)  # 图片链接
-                        actress = match_group.group(2)   # alt文本
-                        logger.debug(f"图片链接: {img}\n小姐姐: {actress}")
-                        metadata.actress[actress] = img
-                    else:
-                        logger.error("未匹配到内容")
-                    time.sleep(5)
-                except:
-                    logger.error(f"演员信息:{url} 提取失败")
-                    continue
-

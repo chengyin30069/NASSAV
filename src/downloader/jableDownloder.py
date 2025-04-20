@@ -13,9 +13,9 @@ class JableDownloader(Downloader):
         if content: return content
         return None
 
-    def parseHTML(self, html: str) -> Optional[AVMetadata]:
+    def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
-        missavMetadata: AVMetadata = AVMetadata()
+        missavMetadata = AVDownloadInfo()
 
         # 1. 提取m3u8
         pattern = r"var hlsUrl = '(https?://[^']+)'"
@@ -34,12 +34,10 @@ class JableDownloader(Downloader):
         return missavMetadata
 
     @staticmethod
-    def _extract_metadata(html: str, metadata: AVMetadata) -> bool:
+    def _extract_metadata(html: str, metadata: AVDownloadInfo) -> bool:
         try:
             # 提取OG标签
             og_title = re.search(r'<meta property="og:title" content="([^"]+)"', html)
-            og_image = re.search(r'<meta property="og:image" content="([^"]+)"', html)
-            og_date = re.search(r'(\d{4}-\d{2}-\d{2})', html)
 
             if og_title: # 处理标题和番号
                 title_content = og_title.group(1)
@@ -48,13 +46,6 @@ class JableDownloader(Downloader):
                     metadata.title = title_content.replace(metadata.avid, '').strip()
                 else:
                     metadata.title = title_content.strip()
-
-            if og_image:
-                metadata.cover = og_image.group(1).strip()
-
-            # 处理发布日期
-            if og_date:
-                metadata.release_date = og_date.group(1).strip()
 
         except Exception as e:
             logger.error(f"元数据解析异常: {str(e)}")

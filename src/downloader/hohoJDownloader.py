@@ -29,16 +29,16 @@ class HohoJDownloader(Downloader):
         if not content: return None
         return content
 
-    def parseHTML(self, html: str) -> Optional[AVMetadata]:
+    def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
-        missavMetadata: AVMetadata = AVMetadata()
+        downloadInfo = AVDownloadInfo()
 
         # 1. 提取m3u8
         match = re.search(r'var videoSrc\s*=\s*"([^"]+)"', html)
         if match:
-            missavMetadata.m3u8 = match.group(1)
-            logger.info(missavMetadata.m3u8)
+            downloadInfo.m3u8 = match.group(1)
+            logger.info(downloadInfo.m3u8)
         else:
             logger.error("未找到URL")
             return None
-        return missavMetadata
+        return downloadInfo

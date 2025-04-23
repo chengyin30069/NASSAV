@@ -1,9 +1,9 @@
 from src import downloaderMgr
-from src.downloader import downloaderBase
 from src.comm import *
 from src import data
 import sys
 import argparse
+from metadata import *
 
 def append_if_not_duplicate(filename, new_content):
     new_content = new_content.strip()
@@ -71,13 +71,11 @@ if __name__ == "__main__":
     
     mgr = downloaderMgr.DownloaderMgr()
     try:
-        count = 0
-        metadata = downloaderBase.AVMetadata()
-        lastDownloader = ""
         # 按照配置好的下载器顺序，依次尝试
         if len(sorted_downloaders) == 0:
             raise ValueError(f"cfg没有配置下载器：{sorted_downloaders}")
         
+        count = 0
         for it in sorted_downloaders:
             count += 1
             downloader = mgr.GetDownloader(it["downloaderName"])
@@ -106,7 +104,7 @@ if __name__ == "__main__":
             break
             
         # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
-        
+        gen_nfo()
             
     except ValueError as e:
         logger.error(e)

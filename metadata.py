@@ -29,10 +29,10 @@ def gen_nfo():
         if folder == "thumb":
             continue
 
-        # # 检查文件夹中是否有.nfo文件
-        # if has_nfo_file(os.path.join(save_path, folder)):
-        #     print(f"已有nfo: {folder}")
-        #     continue
+        # 检查文件夹中是否有.nfo文件
+        if has_nfo_file(os.path.join(save_path, folder)):
+            print(f"已有nfo: {folder}")
+            continue
         if os.path.exists(f"{folder}.html"):
             print(f"已刮削: {folder}")
             continue

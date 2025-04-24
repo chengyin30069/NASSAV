@@ -44,9 +44,6 @@ class MissAVDownloader(Downloader):
         # 2. 提取基本信息
         if not self._extract_metadata(html, missavMetadata):
             return None
-        
-        # 3. 提取演员信息
-        self._extract_actress(html, missavMetadata)
 
         return missavMetadata
 

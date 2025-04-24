@@ -9,11 +9,18 @@ from .comm import *
 from curl_cffi import requests
 from PIL import Image
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import time
 import re
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
+
+def is_complete_url(url):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
 
 # 详细的元数据
 @dataclass
@@ -126,64 +133,70 @@ class Sracper:
             avid = re.search(pattern, html).group(1)
             if not avid:
                 return None
-
+            logger.debug(avid)
             # 1. 提取标题
             title_pattern = r'<title>(.*?) - JavBus</title>'
             title = re.search(title_pattern, html).group(1)
             if not title:
                 return None
-
+            logger.debug(title)
             # 2. 提取封面图
             cover_pattern = r'<a class="bigImage" href="([^"]+)"><img src="([^"]+)"'
             cover = re.search(cover_pattern, html).group(1)
             if not cover:
                 return None
-
+            logger.debug(cover)
             # 3. 提取描述
             desc_pattern = r'<meta name="description" content="([^"]+)">'
             desc = re.search(desc_pattern, html).group(1)
             if not desc:
                 return None
-
+            logger.debug(desc)
             # 4. 提取关键字
             keywords_pattern = r'<meta name="keywords" content="([^"]+)">'
             keywords = re.search(keywords_pattern, html).group(1).split(',')
             if not keywords:
                 return None
-
+            logger.debug(keywords)
             # 5. 提取发行日期
             date_pattern = r'<span class="header">發行日期:</span> ([^<]+)'
             date = re.search(date_pattern, html).group(1).strip()
             if not date:
                 return None
-
+            logger.debug(date)
             # 6. 提取时长
             duration_pattern = r'<span class="header">長度:</span> ([^<]+)'
             duration = re.search(duration_pattern, html).group(1).strip()
             if not duration:
                 return None
-
+            logger.debug(duration)
             # 7. 提取演员及头像
             actors_pattern = r'<a class="avatar-box" href="[^"]+">\s*<div class="photo-frame">\s*<img src="([^"]+)"[^>]+>\s*</div>\s*<span>([^<]+)</span>'
             actresses = re.findall(actors_pattern, html)
             if not actresses:
                 return None
-            
+            logger.debug(actresses)
             # 匹配样品图像
-            fanart_pattern = r'<a class="sample-box" href="(https://pics\.dmm\.co\.jp/digital/video/[^"]+\.jpg)">'
+            fanart_pattern = r'<a class="sample-box" href="(.*?\.jpg)">'
             fanarts = re.findall(fanart_pattern, html)
             if not fanarts:
-                return None
+                fanarts = []
 
             metadata.avid = avid
             metadata.title = title
-            metadata.cover = f"https://{self.domain}{cover}"
+            if is_complete_url(cover):
+                metadata.cover = cover
+            else:
+                metadata.cover = f"https://{self.domain}{cover}"
             metadata.description = desc
             metadata.keywords = keywords
             metadata.release_date = date
             metadata.duration = duration
             for img, name in actresses:
-                metadata.actress[name] = f"https://{self.domain}{img}"
+                if is_complete_url(img):
+                    metadata.actress[name] = img
+                else:
+                    metadata.actress[name] = f"https://{self.domain}{img}"
             metadata.fanarts = fanarts
 
             return metadata

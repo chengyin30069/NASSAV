@@ -33,9 +33,9 @@ def gen_nfo():
         if has_nfo_file(os.path.join(save_path, folder)):
             print(f"已有nfo: {folder}")
             continue
-        if os.path.exists(f"{folder}.html"):
-            print(f"已刮削: {folder}")
-            continue
+        # if os.path.exists(f"{folder}.html"):
+        #     print(f"已刮削: {folder}")
+        #     continue
 
         print(folder)
         scraper = Sracper(save_path, myproxy)

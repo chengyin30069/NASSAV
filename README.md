@@ -1,7 +1,8 @@
+# NASSAV - 多源影视资源下载管理工具
+
 <div align="center">
 <img style="max-width:50%;" src="pic/logo.png" alt="NASSAV" />
 <br>
-  <!-- <img style="max-width:50%;" src="pic/subtitle.svg" alt="你的NAS伴侣~" /> -->
 </div>
 
 <div align="center">
@@ -11,63 +12,70 @@
   <img src="https://img.shields.io/github/license/Satoing/NASSAV?style=for-the-badge&color=FF69B4" alt="License">
 </div>
 
-```
-✨ 碎碎念
+## 项目简介
 
-装好NAS后，本lsp心心念念想要搭建一个”学习资料“影视库，奈何现有的玩法都不太好用。第一是资料下载，磁力下载遇到老的资源就下不动了；二是元数据获取，之前尝试过metatube，但是时有抽风，说实话也不太好用。
+NASSAV 是一个基于 Python 开发的多源影视资源下载管理工具，支持从多个数据源自动下载、整理和刮削影视资源，
 
-最后我还是选择了从现有的网站下载，MissAV就是一个很好的选择。同时网站也提供了丰富的元数据，从网站解析下载链接的同时，可以获取到元数据；视频下载完成后，生成nfo，供媒体服务器使用。
-
-⚠ PS：使用本项目最好要有稳定的代理！
-```
-
+项目采用模块化设计，支持自定义下载器，并提供了完整的元数据管理功能和配套服务。
 
 ## 核心特性
 
-<table><tr>
-  <td><img src="pic/feature1.svg" width="130"></td>
-  <td><img src="pic/feature2.svg" width="160"></td>
-  <td><img src="pic/feature3.svg" width="130"></td>
-  <td><img src="pic/feature4.svg" width="140"></td>
-</tr></table>
+- 🎥 多源下载支持：支持 MissAV、Jable、HohoJ、Memo （持续添加中）等多个数据源
+- 📝 智能元数据管理：从JavBus自动获取影片信息、封面、海报等元数据
+- 🔄 队列管理：支持批量下载任务管理。使用sqlite去重，防止重复下载
+- 🌐 远程控制：提供 HTTP API 接口，支持远程控制下载任务
+- 🔒 文件锁机制：确保同一时间只有一个下载任务运行
+- 🎨 媒体服务器兼容：自动生成 NFO 文件，支持主流媒体服务器
 
-## 预览
+## 系统要求
 
-媒体服务器使用Jellyfin：
+- **稳定的网络连接和代理服务**
+- Python 3.11.2 或更高版本
+- FFmpeg
+- Go 1.22.6 或更高版本（仅用于编译 HTTP 服务器）
 
-![](pic/1.png)
+## 安装指南
 
-## 快速开始
+1. 克隆项目并安装依赖：
+```bash
+git clone https://github.com/Satoing/NASSAV.git
+cd NASSAV
+pip3 install -r requirements.txt
+```
 
-### 安装依赖
-1. 安装Python3：Python 3.11.2
-2. 安装Python依赖：`pip3 install -r requirements.txt`
-3. 安装ffmpeg：`sudo apt install ffmpeg`
-4. （arm需要，amd跳过）替换`tools/m3u8-Downloader-Go`，github上搜这个项目即可
-5. （可选，后面启动api server需要。如果二进制兼容，可以直接用我编译好的server/main）安装golang：go version go1.22.6 linux/amd64
+2. 安装 FFmpeg：
+```bash
+sudo apt install ffmpeg
+```
 
-### 修改配置
+3. 配置项目：
+   - 复制 `cfg/configs.json.example` 为 `cfg/configs.json`
+   - 修改配置文件中的关键参数：
+     - `SavePath`：设置视频保存路径
+     - `Proxy`：配置代理服务器地址
+     - `Downloader`：配置下载器及其优先级
 
-配置结构：
+## 使用方法
+
+### 基本使用
+
+0. 初始化，修改配置文件。主要关注两个字段：
+    - SavePath：下载保存的位置
+    - Proxy：http代理服务器url
 ```json
 {
     "LogPath": "./logs",
     "SavePath": "/vol2/1000/MissAV",
     "DBPath": "./db/downloaded.db",
     "QueuePath": "./db/download_queue.txt",
-    "MissAVDomain": "missav.ai",
-    "proxy": "http://127.0.0.1:7897"
+    "Proxy": "http://127.0.0.1:7897",
+    "IsNeedVideoProxy": false,
 }
 ```
-如果没有特殊需求，只需要关注如下字段：
-1. SavePath：保存的路径，最好用绝对路径 -- pwd
-2. proxy：http代理服务器，没有使用代理一般连不上MissAV。如果无需代理，配置成空串即可。
 
-### 初始化项目
+1. 如果本地已有资源，需要先整理目录结构，车牌号大写作为文件夹名字，视频同名放在文件夹里面：
 
-如果本地已经有老师了，需要先整理成如下结构：车牌号作为文件夹的名字，里面的视频名字和车牌号一致。
-
-```bash
+```
 ...
 ├── SVGAL-009
 │   └── SVGAL-009.mp4
@@ -75,10 +83,8 @@
 │   └── STCVS-007.mp4
 ...
 ```
-然后先执行`python3 metadata.py`，会搜索配置中的SavePath，给里面的每部片子都抓取元数据。同时把不在db中的车牌号保存到db中，保证后续的下载不会重复。
-
-刮削后的结构：
-```bash
+然后执行`python3 metadata.py`，爬取元数据。最后生成的目录结构：
+```
 ...
 ├── SVGAL-009
 │   ├── metadata.json
@@ -94,110 +100,145 @@
 ...
 ```
 
-### 测试下载
+2. 下载单个资源：
+```bash
+python3 main.py <车牌号>
+```
 
-`python3 main.py SVGAL-009`
+3. 强制下载（忽略重复检查）：
+```bash
+python3 main.py <车牌号> -f
+```
 
-命令行会输出日志，如果使用crontab后台执行，可以观察日志输出：logs/2025-04-10.log。
+### 批量下载
 
-如果不想校验db（如实现洗版），将第二个参数设置成-f即可强制下载。即执行 `python3 main.py SVGAL-009 -f`
-但是最后还是会提示重复，是否覆盖。
+1. 将车牌号添加到 `db/download_queue.txt` 中
+2. 设置定时任务：
+```bash
+20 * * * * cd /path/to/NASSAV && bash cron_task.sh
+```
 
-### 自定义数据源优先级
+### HTTP API 服务
 
-在配置中定义了各个下载器的优先级，程序会根据下载器的权重从大到小依次尝试下载。如果想要禁用某个下载器，将对应的权重置为0。
+1. 编译并启动 HTTP 服务器：
+```bash
+cd server
+go build -o main
+./main
+```
+
+2. 发送下载请求：
+```bash
+curl -X POST http://127.0.0.1:49530/process -d "车牌号"
+```
+
+### Gallery 前后端服务
+
+下载了大量fanart，故提供一个网页预览。
+后端提供了两个API：
+1. 获取车牌号列表：/api/videos
+2. 获取车牌号详细信息：/api/videos/FPRE-017
+
+请求结果如下：
+```
+/api/videos
+-----------------------------
+[{"id":"ACHJ-057","title":"ACHJ-057 時には勝手に痴女りたい…。Madonna専属 究極美熟女『めぐり』お貸ししますー。","poster":"/file/ACHJ-057/ACHJ-057-poster.jpg"},{"id":"ADN-604","title":"ADN-604 お義父さんは私の事、どう思ってますか？ 七海ティナ","poster":"/file/ADN-604/ADN-604-poster.jpg"},{"id":"AGAV-122","title":"AGAV-122 顔で抜く！！顔面ドアップPOV 関西弁でイチャサド射精管理してくる年上彼女との同棲生活 流川莉央","poster":"/file/AGAV-122/AGAV-122-poster.jpg"},...]
+
+/api/videos/FPRE-017
+-----------------------------
+{"id":"FPRE-017","title":"FPRE-017 爆乳セレブ痴女に見つめられて犯●れたい 菊乃らん","releaseDate":"2024-02-02","fanarts":["/file/FPRE-017/FPRE-017-fanart-1.jpg","/file/FPRE-017/FPRE-017-fanart-10.jpg","/file/FPRE-017/FPRE-017-fanart-11.jpg","/file/FPRE-017/FPRE-017-fanart-12.jpg","/file/FPRE-017/FPRE-017-fanart-13.jpg","/file/FPRE-017/FPRE-017-fanart-14.jpg","/file/FPRE-017/FPRE-017-fanart-15.jpg","/file/FPRE-017/FPRE-017-fanart-16.jpg","/file/FPRE-017/FPRE-017-fanart-17.jpg","/file/FPRE-017/FPRE-017-fanart-18.jpg","/file/FPRE-017/FPRE-017-fanart-19.jpg","/file/FPRE-017/FPRE-017-fanart-2.jpg","/file/FPRE-017/FPRE-017-fanart-20.jpg","/file/FPRE-017/FPRE-017-fanart-21.jpg","/file/FPRE-017/FPRE-017-fanart-3.jpg","/file/FPRE-017/FPRE-017-fanart-4.jpg","/file/FPRE-017/FPRE-017-fanart-5.jpg","/file/FPRE-017/FPRE-017-fanart-6.jpg","/file/FPRE-017/FPRE-017-fanart-7.jpg","/file/FPRE-017/FPRE-017-fanart-8.jpg","/file/FPRE-017/FPRE-017-fanart-9.jpg","/file/FPRE-017/FPRE-017-fanart.jpg"],"videoFile":"/file/FPRE-017/FPRE-017.mp4"}
+```
+
+据此使用Vue实现一个前端，预览list和detail。
+list页：
+![](pic/gallery-list.png)
+detail页：
+![](pic/gallery-detail.png)
+
+## 配置说明
+
+### 下载器配置
+
+在 `configs.json` 中可以配置多个下载源及其优先级：
 
 ```json
 "Downloader": [
     {
         "downloaderName": "MissAV",
         "domain": "missav.ai",
-        "weight": 150
+        "weight": 300
     },
     {
         "downloaderName": "Jable",
         "domain": "jable.tv",
-        "weight": 200
+        "weight": 500
     },
     {
         "downloaderName": "HohoJ",
         "domain": "hohoj.tv",
-        "weight": 250
+        "weight": 0
     }
 ]
 ```
 
-数据源说明：
-1. MissAv：内容很全，无码破解优先，清晰度一般（720p-1080p），反爬没那么严格
-2. Jable：内容很全，中文字幕优先，清晰度高（1080p），但是反爬比较严格
-3. Hohoj：内容较全，中文字幕有限，清晰度高（1080p），基本没有反爬
+### 数据源说明
 
-综上，把Hohoj作为优先级最高的下载器，其次Jable，最后MissAV。元数据都从MissAV获取。
+1. **MissAV**
+   - 优点：资源全面，反爬限制较少
+   - 缺点：清晰度一般（720p-1080p）
 
-### 启动http服务
+2. **Jable**
+   - 优点：中文字幕资源多，清晰度高（1080p）
+   - 缺点：反爬限制较严格
 
-支持的下载方式：
-1. 直接执行`python main.py <车牌号>`
-2. 在db/download_queue.txt中按行增加要下载的车牌号，crontab定时执行cron_task.sh `20 * * * * cd /home/xxx/missav;bash cron_task.sh`，执行前最好cd到代码所在目录。
+3. **HohoJ**
+   - 优点：清晰度高（1080p），基本无反爬限制
+   - 缺点：中文字幕资源较少
 
-再提供第三个下载方式：远程控制
+4. **Memo**
+   - 优点：资源较新，更新及时
+   - 缺点：部分资源需要会员
 
-启动server/main后，往`http:127.0.0.1:49530/process`发送post请求，post体里面带上车牌号，即可开始下载；如果已经在下载了，则加到download_queue.txt中。
 
-## 项目结构
-```
-MissAV/
-├── cfg
-│   └── configs.json
-├── db
-│   ├── downloaded.db // 保存已经下载的车牌号
-│   └── download_queue.txt // 下载队列，执行cron_task.sh会取出最下面的车牌号，执行下载
-├── logs
-│   └── 2025-04-10.log // 日志，如果下载失败，到这里查原因
-├── server // 简易web server，监听49530端口，获取post请求中的车牌号，调用main.py下载
-│   ├── go.mod
-│   ├── go.sum
-│   ├── main
-│   ├── main.go
-│   └── README.md
-├── src // 核心代码
-│   ├── api.py
-│   ├── comm.py
-│   └── data.py
-├── tools // m3u8下载器和一些其他的辅助脚本
-│   ├── fix.py
-│   ├── link.py
-│   ├── m3u8-Downloader-Go
-│   └── renamejpg.py
-├── cron_task.sh // crontab使用，从download_queue.txt取出最后一个车牌号下载
-├── main.py // 获取输入参数，执行下载、刮削、生成nfo的逻辑
-├── metadata.py // 初始化项目时刮削已有视频的元数据
-├── README.md
-├── requirements.txt
-└── work // 文件锁，保证同时只会执行一个下载。如果同时执行多个，会将后面的车牌号扔到download_queue.txt中
-```
+## 开发指南
 
-## 欢迎lsp们一起维护
+### 添加新的下载器
 
-新增下载器：参考`hohoJDownloader`。需要做的其实很简单：
+1. 在 `src/downloader/` 目录下创建新的下载器类
+2. 继承 `Downloader` 基类，实现必要的方法：
+   - `getDownloaderName()`
+   - `getHTML()`
+   - `parseHTML()`
+3. 在 `DownloaderMgr` 中注册新下载器
+4. 在配置文件中添加相应的配置项
 
-1. 继承Downloader基类，实现其中的`getDownloaderName`、`getHTML`、`parseHTML`方法
-2. 在`DownloadMgr`中注册这个下载器
-3. 在config.json中新增这个下载器的配置，定义域名和下载器的权重
-
+示例代码：
 ```python
-class HohoJDownloader(Downloader):
+class NewDownloader(Downloader):
     def getDownloaderName(self) -> str:
-        '''downloader名字，和配置中保持一致'''
-        pass
+        return "NewDownloader"
 
     def getHTML(self, avid: str) -> Optional[str]:
-        '''根据车牌号，获取到parseHTML所需的html'''
+        # 实现获取HTML的逻辑
         pass
 
-    def parseHTML(self, html: str) -> Optional[AVMetadata]:
-        '''需要实现的方法：根据html，解析出元数据（主要是m3u8链接），返回AVMetadata'''
+    def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
+        # 实现解析HTML的逻辑
         pass
 ```
+### 有需求请自行fork修改，如果想要贡献代码发起PR即可
 
 ![](pic/IMG_5150.JPG)
+
+## 注意事项
+
+- 使用本项目需要稳定的代理服务
+- 请遵守相关法律法规，合理使用本工具
+- 建议定期备份数据库文件
+- 下载过程中请确保网络稳定
+- 建议使用 SSD 存储以提高下载速度
+
+## 许可证
+
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。 

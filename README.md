@@ -149,6 +149,7 @@ curl -X POST http://127.0.0.1:49530/process -d "车牌号"
 ```
 
 据此使用Vue实现一个前端，预览list和detail。
+
 list页：
 ![](pic/gallery-list.png)
 detail页：

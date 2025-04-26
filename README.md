@@ -1,5 +1,3 @@
-# NASSAV - 多源影视资源下载管理工具
-
 <div align="center">
 <img style="max-width:50%;" src="pic/logo.png" alt="NASSAV" />
 <br>

@@ -24,7 +24,7 @@
         {
             "downloaderName": "Memo",
             "domain": "memojav.com",
-            "weight": 400
+            "weight": 200
         },
         {
             "downloaderName": "AvToday",

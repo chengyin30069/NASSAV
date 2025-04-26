@@ -123,15 +123,19 @@ func buildVideoListCache() error {
 	startTime := time.Now()
 	logger.Println("Building video list cache...")
 
-	// 清空现有缓存
-	videoListCache = nil
-
 	// 读取目录
 	files, err := os.ReadDir(basePath)
 	if err != nil {
 		logger.Printf("Error reading directory %s: %v", basePath, err)
 		return fmt.Errorf("read directory failed: %w", err)
 	}
+	// 数量一致，跳过
+	if len(files) == len(videoListCache) {
+		return nil
+	}
+
+	// 清空现有缓存
+	videoListCache = nil
 
 	var count int
 	for _, file := range files {

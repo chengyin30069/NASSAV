@@ -104,8 +104,6 @@ class Sracper:
         html = self._fetch_html(url, referer="self.domain")
         if html is None:
             return None
-        with open(f"{avid}.html", "w+") as f:
-            f.write(html)
         logger.info("fetch html succ")
         
         # 解析元数据

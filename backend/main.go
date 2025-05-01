@@ -441,7 +441,7 @@ func addVideoHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Received ID: %s\n", id)
+	logger.Printf("Received ID: %s\n", id)
 
 	// 检查sqlite里面是否有这个车牌号
 	db, err := sql.Open("sqlite3", "../db/downloaded.db")
@@ -463,13 +463,13 @@ func addVideoHandler(w http.ResponseWriter, r *http.Request) {
 			cmd := exec.Command("sh", "-c", fmt.Sprintf("cd .. && python3 main.py %s", id))
 			err := cmd.Run()
 			if err != nil {
-				log.Printf("command exec failed: %v", err)
+				logger.Printf("command exec failed: %v", err)
 			} else {
-				log.Println("command exec succ!")
+				logger.Printf("command exec succ!")
 			}
 		}()
 	}
-	fmt.Println(response)
+	logger.Println(response)
 
 	// 设置响应内容类型
 	w.Header().Set("Content-Type", "text/plain")

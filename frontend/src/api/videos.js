@@ -22,5 +22,43 @@ export default {
             videoFile: data.videoFile ? `${API_BASE}${data.videoFile}` : null,
             fanarts: data.fanarts?.map(img => `${API_BASE}${img}`) || []
         }
+    },
+
+    async addVideo(id) {
+        console.log(id);
+        const pattern = /^([A-Z0-9]+)-\d+$/;
+
+        if (!id.trim()) {
+            alert('请输入视频内容', true);
+            return;
+        }
+
+        if (!pattern.test(id)) {
+            alert('格式错误：请输入(字母或数字)-数字的组合，如 ABC-123', true);
+            return;
+        }
+
+        this.isAdding = true;
+        try {
+            const response = await axios.get(`${API_BASE}/api/addvideo/${encodeURIComponent(id)}`, {
+                headers: {
+                    'Authorization': 'Bearer IBHUSDBWQHJEJOBDSW'
+                }
+            });
+            console.log(response.data);
+
+            if (response.status >= 200 && response.status < 300) {
+                this.inputContent = ''; // 清空输入框
+                // 使用原生alert替代ElMessage
+                alert('视频添加成功');
+            } else {
+                alert(response.data.message || '添加视频失败');
+            }
+        } catch (error) {
+            console.error('添加视频出错:', error);
+            alert(`添加视频失败: ${error.message}`);
+        } finally {
+            this.isAdding = false;
+        }
     }
 }

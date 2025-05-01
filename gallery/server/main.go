@@ -7,9 +7,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -96,8 +99,16 @@ func main() {
 	// 包装CORS中间件
 	handler := enableCORS(mux)
 
-	logger.Printf("Server started on port %s", serverPort)
-	log.Fatal(http.ListenAndServe("0.0.0.0"+serverPort, handler))
+	// 确保端口号是干净的（如 "8080" 而不是 ":8080"）
+	port := strings.TrimPrefix(serverPort, ":")
+
+	// 方案1：显式创建IPv6监听器（兼容IPv4）
+	listener4, _ := net.Listen("tcp4", "0.0.0.0:"+port)
+	listener6, _ := net.Listen("tcp6", "[::]:"+port)
+	go http.Serve(listener4, handler)
+	log.Fatal(http.Serve(listener6, handler))
+
+	logger.Printf("Server started on port %s (IPv6, with IPv4 compatibility)", port)
 }
 
 // startCacheUpdater 定时更新缓存
@@ -254,13 +265,70 @@ func videoDetailHandler(w http.ResponseWriter, r *http.Request) {
 	// 查找fanart图片
 	fanartDir := filepath.Join(basePath, videoID)
 	if files, err := ioutil.ReadDir(fanartDir); err == nil {
+		// 创建临时存储结构
+		type fanartFile struct {
+			path   string
+			num    int
+			hasNum bool
+		}
+
+		var fanarts []fanartFile
+
 		for _, file := range files {
 			name := file.Name()
 			if !file.IsDir() && strings.HasPrefix(name, videoID+"-fanart") &&
 				strings.HasSuffix(name, ".jpg") {
-				detail.Fanarts = append(detail.Fanarts,
-					fmt.Sprintf("/file/%s/%s", videoID, name))
+
+				// 提取文件名中的数字部分
+				parts := strings.Split(name, "-fanart")
+				if len(parts) < 2 {
+					continue
+				}
+
+				numPart := strings.TrimSuffix(parts[1], ".jpg")
+				numPart = strings.TrimPrefix(numPart, "-")
+
+				var num int
+				var hasNum bool
+
+				// 尝试解析数字
+				if n, err := strconv.Atoi(numPart); err == nil {
+					num = n
+					hasNum = true
+				} else {
+					// 没有数字的情况
+					num = 0
+					hasNum = false
+				}
+
+				fanarts = append(fanarts, fanartFile{
+					path:   fmt.Sprintf("/file/%s/%s", videoID, name),
+					num:    num,
+					hasNum: hasNum,
+				})
 			}
+		}
+
+		// 排序
+		sort.Slice(fanarts, func(i, j int) bool {
+			// 都有数字的情况，按数字排序
+			if fanarts[i].hasNum && fanarts[j].hasNum {
+				return fanarts[i].num < fanarts[j].num
+			}
+			// 只有一个有数字的情况，有数字的排在前面
+			if fanarts[i].hasNum && !fanarts[j].hasNum {
+				return true
+			}
+			if !fanarts[i].hasNum && fanarts[j].hasNum {
+				return false
+			}
+			// 都没有数字的情况，按原始文件名排序
+			return fanarts[i].path < fanarts[j].path
+		})
+
+		// 将排序后的结果存入detail.Fanarts
+		for _, f := range fanarts {
+			detail.Fanarts = append(detail.Fanarts, f.path)
 		}
 	} else {
 		logger.Printf("Error reading fanart dir for %s: %v", videoID, err)

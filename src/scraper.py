@@ -127,7 +127,7 @@ class Sracper:
         try:
             metadata = AVMetadata()
             # 0. 提取avid
-            pattern = r'<title>([A-Z]+-\d+)'
+            pattern = r'<title>((\d|[A-Z])+-\d+)'
             avid = re.search(pattern, html).group(1)
             if not avid:
                 return None
@@ -171,8 +171,6 @@ class Sracper:
             # 7. 提取演员及头像
             actors_pattern = r'<a class="avatar-box" href="[^"]+">\s*<div class="photo-frame">\s*<img src="([^"]+)"[^>]+>\s*</div>\s*<span>([^<]+)</span>'
             actresses = re.findall(actors_pattern, html)
-            if not actresses:
-                return None
             logger.debug(actresses)
             # 匹配样品图像
             fanart_pattern = r'<a class="sample-box" href="(.*?\.jpg)">'

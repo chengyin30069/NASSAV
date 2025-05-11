@@ -54,16 +54,18 @@ sudo apt install ffmpeg
    - 复制 `cfg/configs.json.example` 为 `cfg/configs.json`
    - 修改配置文件中的关键参数：
      - `SavePath`：设置视频保存路径
-     - `Proxy`：配置代理服务器地址
+     - `Proxy`：配置代理服务器地址（如果不需要使用代理，设置成""即可）
      - `Downloader`：配置下载器及其优先级
+     - `IsNeedVideoProxy`：下载视频是否使用代理
 
 ## 使用方法
 
 ### 基本使用
 
-0. 初始化，修改配置文件。主要关注两个字段：
+0. 初始化，修改配置文件。主要关注的字段：
     - SavePath：下载保存的位置
-    - Proxy：http代理服务器url
+    - Proxy：http代理服务器url（如果不需要使用代理，设置成""即可）
+    - IsNeedVideoProxy：下载视频是否使用代理
 ```json
 {
     "LogPath": "./logs",
@@ -134,9 +136,10 @@ go build -o main
 curl -X POST http://127.0.0.1:49530/process -d "车牌号"
 ```
 
-### Gallery 前后端服务
+### 前后端服务
 
-下载了大量fanart，故提供一个网页预览。
+刮削时下载了大量fanart，故提供一个网页预览。
+
 后端提供了两个API：
 1. 获取车牌号列表：/api/videos
 2. 获取车牌号详细信息：/api/videos/FPRE-017

@@ -1,14 +1,13 @@
-FROM archlinux:base
+FROM python:3.13-slim
 
-RUN pacman -Syu --noconfirm git ffmpeg python && \
-    rm -rf /var/cache/pacman/pkg/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /NASSAV
 
 COPY . .
 
-RUN python -m venv .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN ./bin/pip install -r requirements.txt
-
-ENTRYPOINT ["./bin/python", "main.py"]
+ENTRYPOINT ["python", "main.py"]

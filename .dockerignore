@@ -4,6 +4,8 @@ pic/
 cron_task.sh
 LICENSE
 README.md
+tools/m3u8-Downloader-Go
+dockerfile
 
 # Python caches and virtualenv
 __pycache__/

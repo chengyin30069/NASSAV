@@ -114,6 +114,20 @@ python3 main.py <车牌号>
 python3 main.py <车牌号> -f
 ```
 
+### 使用Docker下載
+
+0. 前置作業如基本使用
+
+1. Build Docker (初次使用才需要)
+```bash
+(sudo) docker build -t nassav .
+```
+
+2. 下載
+```bash
+(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json存片位置>" nassav <車號>
+```
+
 ### 批量下载
 
 1. 将车牌号添加到 `db/download_queue.txt` 中

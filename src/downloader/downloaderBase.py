@@ -8,9 +8,6 @@ from typing import Optional, Tuple
 from pathlib import Path
 from ..comm import *
 from curl_cffi import requests
-from PIL import Image
-from datetime import datetime
-import time
 
 # 下载信息，只保留最基础的信息。只需要填写avid，其他字段用于调试，选填
 @dataclass

@@ -65,7 +65,7 @@ class MissAVDownloader(Downloader):
 
             if og_title: # 处理标题和番号
                 title_content = og_title.group(1)
-                if code_match := re.search(r'([A-Z]+-\d+)', title_content):
+                if code_match := re.search(r'^([A-Z]+(?:-[A-Z]+)*-\d+)', title_content):
                     metadata.avid = code_match.group(1)
                     metadata.title = title_content.replace(metadata.avid, '').strip()
                 else:

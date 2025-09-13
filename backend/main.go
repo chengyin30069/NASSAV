@@ -146,8 +146,42 @@ func buildVideoListCache() error {
 		logger.Printf("Error reading directory %s: %v", basePath, err)
 		return fmt.Errorf("read directory failed: %w", err)
 	}
-	// 数量一致，跳过
-	if len(files) == len(videoListCache) {
+
+	type dirEntryWithInfo struct {
+		entry os.DirEntry
+		info  os.FileInfo
+	}
+
+	// 获取文件夹的修改时间信息
+	var dirs []dirEntryWithInfo
+	for _, file := range files {
+		if !file.IsDir() {
+			continue
+		}
+		info, err := file.Info()
+		if err != nil {
+			logger.Printf("Error getting info for %s: %v", file.Name(), err)
+			continue
+		}
+		dirs = append(dirs, dirEntryWithInfo{entry: file, info: info})
+	}
+
+	// 按修改时间倒序排序（最新的在前面）
+	sort.Slice(dirs, func(i, j int) bool {
+		return dirs[i].info.ModTime().After(dirs[j].info.ModTime())
+	})
+
+	// 如果文件夹数量一致（且都是有效文件夹），则跳过重建
+	validCount := 0
+	for _, dir := range dirs {
+		posterPath := filepath.Join(basePath, dir.entry.Name(), dir.entry.Name()+"-poster.jpg")
+		if _, err := os.Stat(posterPath); err == nil {
+			validCount++
+		}
+	}
+
+	if validCount == len(videoListCache) {
+		logger.Printf("Cache unchanged. Valid items: %d", validCount)
 		return nil
 	}
 
@@ -155,12 +189,8 @@ func buildVideoListCache() error {
 	videoListCache = nil
 
 	var count int
-	for _, file := range files {
-		if !file.IsDir() {
-			continue
-		}
-
-		videoID := file.Name()
+	for _, dir := range dirs {
+		videoID := dir.entry.Name()
 		posterPath := filepath.Join(basePath, videoID, videoID+"-poster.jpg")
 
 		if _, err := os.Stat(posterPath); err != nil {

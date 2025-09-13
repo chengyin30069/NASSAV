@@ -1,6 +1,7 @@
 import json
 from loguru import logger
 import os
+import platform
 
 # 获取项目目录
 current_file_path = os.path.abspath(__file__)
@@ -41,3 +42,9 @@ for downloader in configs["Downloader"]:
         missAVDomain = downloader["domain"]
         break
 logger.info(f"missav domain: {missAVDomain}")
+
+# 初始化下载器
+download_tool = f"'{project_root}/tools/m3u8-Downloader-Go'"
+if platform.system() == 'Windows':
+    print("platform: Windows")
+    download_tool = rf"{project_root}\tools\m3u8-Downloader-Go.exe"

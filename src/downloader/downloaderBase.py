@@ -118,19 +118,19 @@ class Downloader(ABC):
         try:
             if isNeedVideoProxy and self.proxy:
                 logger.info("使用代理")
-                command = f"'{project_root}/tools/m3u8-Downloader-Go' -u '{url}' -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
+                command = f"{download_tool} -u {url} -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
             else:
                 logger.info("不使用代理")
-                command = f"'{project_root}/tools/m3u8-Downloader-Go' -u '{url}' -o {os.path.join(self.path, avid, avid+'.ts')}"
+                command = f"{download_tool} -u {url} -o {os.path.join(self.path, avid, avid+'.ts')}"
             logger.debug(command)
             if os.system(command) != 0:
                 # 难顶。。。使用代理下载失败，尝试不用代理；不用代理下载失败，尝试使用代理
                 if not isNeedVideoProxy and self.proxy:
                     logger.info("尝试使用代理")
-                    command = f"'{project_root}/tools/m3u8-Downloader-Go' -u '{url}' -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
+                    command = f"{download_tool} -u {url} -o {os.path.join(self.path, avid, avid+'.ts')} -p {self.proxy}"
                 else:
                     logger.info("尝试不使用代理")
-                    command = f"'{project_root}/tools/m3u8-Downloader-Go' -u '{url}' -o {os.path.join(self.path, avid, avid+'.ts')}"
+                    command = f"{download_tool} -u {url} -o {os.path.join(self.path, avid, avid+'.ts')}"
                 logger.debug(f"retry {command}")
                 if os.system(command) != 0:
                     return False

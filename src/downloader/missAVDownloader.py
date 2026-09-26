@@ -1,6 +1,9 @@
 from .downloaderBase import *
 import re
 from typing import Optional, Tuple
+from ..cloudflare import browser_headers
+from .missavHls import download_media
+from urllib.parse import urljoin
 
 class MissAVDownloader(Downloader):
     def getDownloaderName(self) -> str:
@@ -81,10 +84,20 @@ class MissAVDownloader(Downloader):
 
         return True
     
-    @staticmethod
-    def _get_highest_quality_m3u8(playlist_url: str) -> Optional[Tuple[str, str]]:
+    def _media_headers(self) -> dict[str, str]:
+        user_agent = browser_headers(configs.get("Cloudflare", {}), project_root).get("User-Agent")
+        media_headers = {"Referer": f"https://{self.domain}/"}
+        if user_agent:
+            media_headers["User-Agent"] = user_agent
+        return media_headers
+
+    def _get_highest_quality_m3u8(self, playlist_url: str) -> Optional[Tuple[str, str]]:
         try:
-            response = requests.get(playlist_url, timeout=10, impersonate="chrome110")
+            response = requests.get(
+                playlist_url, timeout=self.timeout, proxies=self.proxies,
+                headers=self._media_headers(),
+                impersonate=configs.get("Cloudflare", {}).get("Impersonate", "chrome110"),
+            )
             response.raise_for_status()
             playlist_content = response.text
             
@@ -106,11 +119,23 @@ class MissAVDownloader(Downloader):
             if streams:
                 # 返回最高质量的流
                 best_stream = streams[0]
-                base_url = playlist_url.rsplit('/', 1)[0]  # 获取基础URL
-                full_url = f"{base_url}/{best_stream[2]}" if not best_stream[2].startswith('http') else best_stream[2]
+                full_url = urljoin(playlist_url, best_stream[2])
                 return full_url, best_stream[1]      
             return None
         
         except Exception as e:
             logger.error(f"获取最高质量流失败: {str(e)}")
             return None
+
+    def downloadM3u8(self, url: str, avid: str) -> bool:
+        video_path = os.path.join(self.path, avid, avid + ".mp4")
+        try:
+            download_media(
+                url, video_path, self._media_headers(),
+                configs.get("Cloudflare", {}).get("Impersonate", "chrome110"),
+                self.proxies,
+            )
+            return True
+        except (OSError, ValueError, RuntimeError, requests.exceptions.RequestException) as exc:
+            logger.error(f"MissAV video download failed: {exc}")
+            return False

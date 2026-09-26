@@ -5,6 +5,12 @@
     "QueuePath": "./db/download_queue.txt",
     "Proxy": "http://127.0.0.1:7897",
     "IsNeedVideoProxy": false,
+    "Cloudflare": {
+        "CookieFile": "",
+        "Cookie": "",
+        "UserAgent": "",
+        "Impersonate": "chrome120"
+    },
     "Downloader": [
         {
             "downloaderName": "MissAV",

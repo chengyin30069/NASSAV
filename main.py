@@ -50,6 +50,11 @@ if __name__ == "__main__":
 
     avid = args.target.upper()
 
+    video_path = os.path.join(save_path, avid, avid + ".mp4")
+    if os.path.isfile(video_path):
+        logger.info(f"{avid} 视频文件已存在: {video_path}")
+        sys.exit(0)
+
     if not args.force:
         if data.find_in_db(avid, downloaded_path, "MissAV"):
             logger.info(f"{avid} 已在小姐姐数据库中")
@@ -104,7 +109,7 @@ if __name__ == "__main__":
             break
             
         # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
-        gen_nfo()
+        gen_nfo(avid)
             
     except ValueError as e:
         logger.error(e)

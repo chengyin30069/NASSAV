@@ -57,6 +57,7 @@ sudo apt install ffmpeg
      - `Proxy`：配置代理服务器地址（如果不需要使用代理，设置成""即可）
      - `Downloader`：配置下载器及其优先级
      - `IsNeedVideoProxy`：下载视频是否优先使用代理（最终都会尝试使用代理和不使用代理）
+     - `Cloudflare`：MissAV 的浏览器 Cookie 与 User-Agent（见下文）
 
 ## 使用方法
 
@@ -125,8 +126,11 @@ python3 main.py <车牌号> -f
 
 2. 下載
 ```bash
-(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json存片位置>" nassav <車號>
+(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json的SavePath>" \
+  -v "$PWD/missav-cookie.txt:/NASSAV/missav-cookie.txt:ro" nassav <車號>
 ```
+
+如果 `Cloudflare.CookieFile` 为空，可以省略第二个挂载。Cookie 文件不会打包进镜像，容器运行时需要单独挂载。
 
 ### 批量下载
 
@@ -190,6 +194,21 @@ npm run build
 3. 使用nginx部署静态网页：`127.0.0.1:5177`
 
 ## 配置说明
+
+### Cloudflare 验证
+
+MissAV 请求可以在 `cfg/configs.json` 的 `Cloudflare` 项配置浏览器取得的 Cookie 和对应的 User-Agent：
+
+```json
+"Cloudflare": {
+    "CookieFile": "missav-cookie.txt",
+    "Cookie": "",
+    "UserAgent": "",
+    "Impersonate": "chrome120"
+}
+```
+
+`CookieFile` 相对路径以项目目录为起点，文件第一行放完整的 Cookie 请求头值，第二行放同一个浏览器的 User-Agent。也可以留空 `CookieFile`，直接填写 `Cookie` 和 `UserAgent`；非空的直接设置会覆盖文件对应的值。`Impersonate` 是 `curl_cffi` 的浏览器指纹配置，应选择与取得 Cookie 的浏览器相近的类型。Cookie 只发送到配置的 MissAV 域名；从视频 CDN 下载播放清单和片段时只发送 Referer 与 User-Agent，不发送 Cookie。`cf_clearance` 等 Cookie 必须是真实且未过期的浏览器值，随意伪造无法通过 Cloudflare 验证。请勿将 Cookie 提交到版本控制。
 
 ### 下载器配置
 
@@ -274,4 +293,4 @@ class NewDownloader(Downloader):
 
 ## 许可证
 
-本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。 
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。

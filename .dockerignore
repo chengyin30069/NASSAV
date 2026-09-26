@@ -22,5 +22,6 @@ Thumbs.db
 
 # Git metadata
 .git
+missav-cookie.txt
 
 # Keep Dockerfile in context (do not ignore)

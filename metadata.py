@@ -22,10 +22,10 @@ def has_nfo_file(folder_path):
                 return True
     return False
 
-def gen_nfo():
-    folders = list_folders(save_path)
+def gen_nfo(target=None):
+    folders = [target] if target else list_folders(save_path)
     data.batch_insert_bvids(folders, downloaded_path, "MissAV") # 多点脏数据也无所谓
-    for folder in folders:
+    for index, folder in enumerate(folders):
         if folder == "thumb":
             continue
 
@@ -41,7 +41,8 @@ def gen_nfo():
         scraper = Sracper(save_path, myproxy)
         scraper.scrape(folder)
 
-        time.sleep(5)
+        if index + 1 < len(folders):
+            time.sleep(5)
 
 if __name__ == "__main__":
     data.initialize_db(downloaded_path, "MissAV")

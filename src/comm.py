@@ -10,7 +10,8 @@ project_root = os.path.dirname(os.path.dirname(current_file_path))
 # 获取配置
 with open(project_root+'/cfg/configs.json', 'r', encoding='utf-8') as file:
     configs = json.load(file)
-logger.info(configs)
+# Configuration may contain Cloudflare clearance cookies; never log it verbatim.
+logger.info("Loaded configuration from cfg/configs.json")
 
 # 初始化日志
 logger.add(

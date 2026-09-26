@@ -8,6 +8,8 @@ from typing import Optional, Tuple
 from pathlib import Path
 from ..comm import *
 from curl_cffi import requests
+from urllib.parse import urlparse
+from ..cloudflare import browser_headers
 
 # 下载信息，只保留最基础的信息。只需要填写avid，其他字段用于调试，选填
 @dataclass
@@ -62,7 +64,7 @@ class Downloader(ABC):
             'https': proxy
         } if proxy else None
         self.timeout = timeout
-    
+
     def setDomain(self, domain: str) -> bool:
         if domain:  
             self.domain = domain
@@ -149,19 +151,25 @@ class Downloader(ABC):
     def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         logger.debug(f"fetch url: {url}")
         try:
-            newHeader = headers
+            newHeader = headers.copy()
             if referer:
                 newHeader["Referer"] = referer
+            hostname = urlparse(url).hostname or ""
+            impersonate = "chrome110"
+            if (self.getDownloaderName() == "MissAV" and
+                    (hostname == self.domain or hostname.endswith("." + self.domain))):
+                cloudflare = configs.get("Cloudflare", {})
+                newHeader.update(browser_headers(cloudflare, project_root))
+                impersonate = cloudflare.get("Impersonate", impersonate)
             response = requests.get(
                 url,
                 proxies=self.proxies,
                 headers=newHeader,
                 timeout=self.timeout,
-                impersonate="chrome110",  # 可选：chrome, chrome110, edge99, safari15_5
+                impersonate=impersonate,
             )
             response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:
             logger.error(f"请求失败: {str(e)}")
             return None
-    

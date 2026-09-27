@@ -9,7 +9,7 @@ from pathlib import Path
 from ..comm import *
 from curl_cffi import requests
 from urllib.parse import urlparse
-from ..cloudflare import browser_headers
+from ..cloudflare import browser_headers, solve_page
 
 # 下载信息，只保留最基础的信息。只需要填写avid，其他字段用于调试，选填
 @dataclass
@@ -156,8 +156,9 @@ class Downloader(ABC):
                 newHeader["Referer"] = referer
             hostname = urlparse(url).hostname or ""
             impersonate = "chrome110"
-            if (self.getDownloaderName() == "MissAV" and
-                    (hostname == self.domain or hostname.endswith("." + self.domain))):
+            missav_request = (self.getDownloaderName() == "MissAV" and
+                              (hostname == self.domain or hostname.endswith("." + self.domain)))
+            if missav_request:
                 cloudflare = configs.get("Cloudflare", {})
                 newHeader.update(browser_headers(cloudflare, project_root))
                 impersonate = cloudflare.get("Impersonate", impersonate)
@@ -168,8 +169,14 @@ class Downloader(ABC):
                 timeout=self.timeout,
                 impersonate=impersonate,
             )
+            if (missav_request and response.status_code == 403 and
+                    response.headers.get("cf-mitigated") == "challenge"):
+                solver_url = configs.get("Cloudflare", {}).get("SolverURL", "")
+                if solver_url:
+                    logger.info("Cloudflare challenge detected; opening page in browser solver")
+                    return solve_page(url, solver_url)
             response.raise_for_status()
             return response.text
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, OSError, ValueError) as e:
             logger.error(f"请求失败: {str(e)}")
             return None

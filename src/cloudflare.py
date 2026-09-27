@@ -1,6 +1,8 @@
 """Optional browser credentials for sites protected by Cloudflare."""
 
 from pathlib import Path
+import json
+from urllib.request import Request, urlopen
 
 
 def browser_headers(settings: dict, project_root: str) -> dict[str, str]:
@@ -28,3 +30,21 @@ def browser_headers(settings: dict, project_root: str) -> dict[str, str]:
     if user_agent:
         headers["User-Agent"] = user_agent
     return headers
+
+
+def solve_page(url: str, solver_url: str, timeout: int = 30) -> str:
+    """Retrieve a challenged page through a browser-based solver service."""
+    request = Request(
+        solver_url,
+        data=json.dumps({"cmd": "request.get", "url": url, "maxTimeout": timeout * 1000}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urlopen(request, timeout=timeout + 10) as response:
+        result = json.load(response)
+    solution = result.get("solution") or {}
+    html = solution.get("response") or ""
+    if result.get("status") != "ok" or solution.get("status") != 200:
+        raise ValueError("Browser solver did not return a successful page")
+    if "Just a moment..." in html or not html:
+        raise ValueError("Browser solver returned a Cloudflare challenge")
+    return html

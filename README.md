@@ -134,6 +134,8 @@ python3 main.py <车牌号> -f
 
 FlareSolverr 已包含在同一 Alpine 映像中，容器会在下载前启动浏览器服务，结束时自动关闭；不需要额外的容器、端口映射或 `--network host`。`Cloudflare.SolverURL` 应设为 `http://127.0.0.1:8191/v1`（示例配置已预设）。如果 `Cloudflare.CookieFile` 为空，可以省略第二个挂载；Cookie 文件不会打包进映像。构建时会从 FlareSolverr 的 v3.5.2 tag 取得源码；Chromium 及 chromedriver 来自 Alpine 套件库，仍会占用一定的映像空间。
 
+映像預設以 UID/GID `1000:1000` 執行，需對掛載的下載目錄有寫入權限。如果主機目錄屬於其他 UID/GID，建置時可加入 `--build-arg NASSAV_UID=$(id -u) --build-arg NASSAV_GID=$(id -g)`。
+
 ### 批量下载
 
 1. 将车牌号添加到 `db/download_queue.txt` 中

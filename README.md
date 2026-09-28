@@ -126,13 +126,14 @@ python3 main.py <车牌号> -f
 
 2. 下載
 ```bash
-(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json的SavePath>" \
-  -v "$PWD/missav-cookie.txt:/NASSAV/missav-cookie.txt:ro" nassav <車號>
+(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json裡設定的SavePath>" \
+  -v "<missav-cookie.txt>:/NASSAV/missav-cookie.txt:ro" //掛載cookie, UA設定 \
+  nassav <車號>
 ```
 
-若影片沒有 fan art，可在車號後加 `--no-fan-art`，例如 `docker run ... nassav <車號> --no-fan-art`。此參數會略過整個 `gen_nfo` 後處理，因此也不會產生 NFO；影片下載流程不變。
+使用cookie和UA可以bypass Cloudflare的防爬蟲，用額外掛載或在`cfg/configs.json`內填寫都可以，但頻率太高還是會被抓到進冷卻，為了解決這個問題有在docker image同時包進[flaresolverr](https://github.com/FlareSolverr/FlareSolverr)去解掉Cloudflare的驗證問題，從而實踐下載冷卻歸零。Bare-metal下載尚未測試。
 
-FlareSolverr 已包含在同一 Alpine 映像中，容器会在下载前启动浏览器服务，结束时自动关闭；不需要额外的容器、端口映射或 `--network host`。`Cloudflare.SolverURL` 应设为 `http://127.0.0.1:8191/v1`（示例配置已预设）。如果 `Cloudflare.CookieFile` 为空，可以省略第二个挂载；Cookie 文件不会打包进映像。构建时会从 FlareSolverr 的 v3.5.2 tag 取得源码；Chromium 及 chromedriver 来自 Alpine 套件库，仍会占用一定的映像空间。
+若影片沒有fan art可在車號後加 `--no-fan-art`，例如 `docker run ... nassav <車號> --no-fan-art`。此參數會略過整個 `gen_nfo` 後處理，因此也不會產生 NFO；影片下載流程不變。
 
 映像預設以 UID/GID `1000:1000` 執行，需對掛載的下載目錄有寫入權限。如果主機目錄屬於其他 UID/GID，建置時可加入 `--build-arg NASSAV_UID=$(id -u) --build-arg NASSAV_GID=$(id -g)`。
 

@@ -25,6 +25,7 @@ if __name__ == "__main__":
     
     parser.add_argument('-f', '--force', action='store_true', help='跳过DB检查，强制执行')
     parser.add_argument('-t', '--target', type=str, help='指定车牌号')
+    parser.add_argument('--no-fan-art', action='store_true', help='跳过 gen_nfo 后处理（NFO、fan art 等）')
     
     args, unknown = parser.parse_known_args()
     if not args and not unknown:
@@ -109,7 +110,8 @@ if __name__ == "__main__":
             break
             
         # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
-        gen_nfo(avid)
+        if not args.no_fan_art:
+            gen_nfo(avid)
             
     except ValueError as e:
         logger.error(e)

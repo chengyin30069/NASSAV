@@ -12,6 +12,12 @@
         "Impersonate": "chrome120",
         "SolverURL": "http://127.0.0.1:8191/v1"
     },
+    "JavBus": {
+        "CookieFile": "",
+        "Cookie": "",
+        "UserAgent": "",
+        "Impersonate": "chrome120"
+    },
     "Downloader": [
         {
             "downloaderName": "MissAV",

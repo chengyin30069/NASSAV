@@ -127,7 +127,7 @@ python3 main.py <车牌号> -f
 2. 下載
 ```bash
 (sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json裡設定的SavePath>" \
-  -v "<missav-cookie.txt>:/NASSAV/missav-cookie.txt:ro" //掛載cookie, UA設定 \
+  -v "<missav-cookie.txt>:/NASSAV/missav-cookie.txt:ro" \
   nassav <車號>
 ```
 
@@ -217,6 +217,21 @@ MissAV 请求可以在 `cfg/configs.json` 的 `Cloudflare` 项配置浏览器取
 `CookieFile` 相对路径以项目目录为起点，文件第一行放完整的 Cookie 请求头值，第二行放同一个浏览器的 User-Agent。也可以留空 `CookieFile`，直接填写 `Cookie` 和 `UserAgent`；非空的直接设置会覆盖文件对应的值。`Impersonate` 是 `curl_cffi` 的浏览器指纹配置，应选择与取得 Cookie 的浏览器相近的类型。Cookie 只发送到配置的 MissAV 域名；从视频 CDN 下载播放清单和片段时只发送 Referer 与 User-Agent，不发送 Cookie。`cf_clearance` 等 Cookie 必须是真实且未过期的浏览器值，随意伪造无法通过 Cloudflare 验证。请勿将 Cookie 提交到版本控制。
 
 Docker 映像内已包含 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)，`SolverURL` 预设为 `http://127.0.0.1:8191/v1`。下载器只在 MissAV 页面收到挑战时调用浏览器服务，影片片段仍由原有下载流程处理。本机直接运行 `python3 main.py` 时，如需此功能，仍须另外启动 FlareSolverr；不需要时可把 `SolverURL` 设为空字串。
+
+### JavBus 年齡／問卷驗證
+
+JavBus 若將影片頁轉到 `doc/driver-verify`，需先在瀏覽器完成網站要求的驗證，再將同一瀏覽器對 `www.javbus.com` 的 Cookie 請求頭及 User-Agent，分別放入 `javbus-cookie.txt` 的第一、二行。於 `cfg/configs.json` 加入：
+
+```json
+"JavBus": {
+    "CookieFile": "javbus-cookie.txt",
+    "Cookie": "",
+    "UserAgent": "",
+    "Impersonate": "chrome120"
+}
+```
+
+修改 `cfg/configs.json` 後需重建映像，或在執行時將設定檔掛載至 `/NASSAV/cfg/configs.json:ro`。Docker 執行時另加 `-v "$PWD/javbus-cookie.txt:/NASSAV/javbus-cookie.txt:ro"`；`CookieFile` 設為空字串時也可直接填 `Cookie`、`UserAgent`。Cookie 僅送往 `www.javbus.com`，不會送給外部圖片 CDN。JavBus 驗證需要有效的瀏覽器會話；FlareSolverr 只能處理其支援的瀏覽器挑戰，不會自動回答 JavBus 問卷。Cookie 過期時需重新在瀏覽器驗證並更新檔案，請勿將 Cookie 提交到版本控制或打包入映像。
 
 ### 下载器配置
 

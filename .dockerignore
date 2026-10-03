@@ -13,6 +13,8 @@ __pycache__/
 *.pyc
 venv/
 .env
+tests/
+src/__pycache__/
 
 # Editor and OS files
 .vscode/
@@ -23,5 +25,6 @@ Thumbs.db
 # Git metadata
 .git
 missav-cookie.txt
+javbus-cookie.txt
 
 # Keep Dockerfile in context (do not ignore)

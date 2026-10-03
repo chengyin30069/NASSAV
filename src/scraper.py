@@ -10,6 +10,7 @@ from curl_cffi import requests
 from PIL import Image
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
+from .cloudflare import browser_headers
 import time
 import re
 from xml.etree import ElementTree as ET
@@ -77,7 +78,6 @@ headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
-    "Cookie": "PHPSESSID=kesgcjj4fklf91ojbaocbkbao2; age=verified; existmag=mag",
     "Referer": "https://www.javbus.com",
     "Sec-Fetch-Mode": "navigate"
 }
@@ -96,12 +96,29 @@ class Sracper:
         } if proxy else None
         self.timeout = timeout
         self.domain = "www.javbus.com"
+        self.javbus_settings = configs.get("JavBus", {})
+        self.impersonate = self.javbus_settings.get("Impersonate", "chrome120")
+
+    def _request_headers(self, url: str, referer: str = "") -> dict[str, str]:
+        request_headers = headers.copy()
+        if referer:
+            request_headers["Referer"] = referer
+        configured = browser_headers(self.javbus_settings, project_root, site_name="JavBus")
+        if "User-Agent" in configured:
+            request_headers["User-Agent"] = configured["User-Agent"]
+        if urlparse(url).hostname == self.domain and "Cookie" in configured:
+            request_headers["Cookie"] = configured["Cookie"]
+        return request_headers
+
+    @staticmethod
+    def _is_verification_url(url: str) -> bool:
+        return urlparse(url).path.startswith("/doc/driver-verify")
 
     def scrape(self, avid: str) -> Optional[AVMetadata]:
         # 获取html
         url= f"https://{self.domain}/{avid.upper()}"
         logger.info(url)
-        html = self._fetch_html(url, referer="self.domain")
+        html = self._fetch_html(url, referer=f"https://{self.domain}/")
         if html is None:
             return None
         logger.info("fetch html succ")
@@ -197,8 +214,10 @@ class Sracper:
 
             return metadata
         
-        except:
-            logger.error("您進入的網址有誤")
+        except Exception as exc:
+            title = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
+            page_title = title.group(1).strip()[:100] if title else "（沒有標題）"
+            logger.error(f"JavBus 頁面解析失敗，標題: {page_title}；錯誤: {type(exc).__name__}: {exc}")
             return None
     
     def downloadIMG(self, metadata: AVMetadata) -> bool:
@@ -284,12 +303,16 @@ class Sracper:
         """通用下载方法，下载到指定位置"""
         logger.debug(f"download {url} to {os.path.join(self.path, filename)}")
         try:
-            newHeader = headers
-            if referer:
-                newHeader["Referer"] = referer
-            response = requests.get(url, stream=True, impersonate="chrome110", proxies=self.proxies,\
+            newHeader = self._request_headers(url, referer)
+            response = requests.get(url, stream=True, impersonate=self.impersonate, proxies=self.proxies,\
                                     headers=newHeader,timeout=self.timeout, allow_redirects=False)
+            if 300 <= response.status_code < 400:
+                logger.error(f"圖片請求被轉向，未儲存非圖片內容: {urljoin(url, response.headers.get('Location', ''))}")
+                return False
             response.raise_for_status()
+            if response.headers.get("Content-Type", "").lower().startswith("text/html"):
+                logger.error(f"圖片請求收到 HTML，未儲存非圖片內容: {url}")
+                return False
             
             with open(os.path.join(self.path, filename), 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -302,20 +325,28 @@ class Sracper:
     
     def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
         try:
-            newHeader = headers
-            if referer:
-                newHeader["Referer"] = referer
+            newHeader = self._request_headers(url, referer)
             response = requests.get(
                 url,
                 proxies=self.proxies,
                 headers=newHeader,
                 timeout=self.timeout,
-                impersonate="chrome110",  # 可选：chrome, chrome110, edge99, safari15_5
+                impersonate=self.impersonate,
                 allow_redirects=False
             )
+            if 300 <= response.status_code < 400:
+                destination = urljoin(url, response.headers.get("Location", ""))
+                if self._is_verification_url(destination):
+                    logger.error("JavBus 要求年齡／問卷驗證。請先在瀏覽器完成驗證，並設定 JavBus 專用 Cookie 與 User-Agent；若已設定，請更新過期的 Cookie。")
+                else:
+                    logger.error(f"JavBus 頁面被轉向: {destination}")
+                return None
             response.raise_for_status()
+            if "Age Verification JavBus" in response.text:
+                logger.error("JavBus 回傳驗證頁而非影片頁；請更新 JavBus Cookie 與 User-Agent。")
+                return None
             return response.text
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, ValueError) as e:
             logger.error(f"请求失败: {str(e)}")
             return None
     

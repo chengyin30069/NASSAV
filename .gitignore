@@ -114,6 +114,9 @@ coverage/
 .env.test
 .env.production
 
+# 設定檔
+cfg/configs.json
+
 # 证书/密钥
 *.key
 *.pem
@@ -134,3 +137,4 @@ Thumbs.db
 
 downloaded.db
 missav-cookie.txt
+javbus-cookie.txt

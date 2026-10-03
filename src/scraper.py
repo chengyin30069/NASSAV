@@ -1,367 +1,260 @@
-# doc: 使用javbus刮削
-import json
-from loguru import logger
-import os
-from dataclasses import dataclass, asdict, field
-from typing import Optional, List, Dict
-from pathlib import Path
-from .comm import *
-from curl_cffi import requests
-from PIL import Image
+"""Artwork scraper: R18/FANZA for catalogue titles, FC2 for FC2-PPV titles."""
+
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from urllib.parse import urljoin, urlparse
-from .cloudflare import browser_headers
-import time
+from html.parser import HTMLParser
+from io import BytesIO
+import json
+import os
+from pathlib import Path
 import re
+from urllib.parse import quote, urljoin, urlparse
 from xml.etree import ElementTree as ET
-from xml.dom import minidom
 
-def is_complete_url(url):
-    try:
-        result = urlparse(url)
-        return all([result.scheme, result.netloc])
-    except:
-        return False
+from curl_cffi import requests
+from loguru import logger
+from PIL import Image, ImageOps, UnidentifiedImageError
 
-# 详细的元数据
+from .comm import configs
+
+
+FC2_ID = re.compile(r"FC2(?:[-_ ]?PPV)?[-_ ]?(\d+)", re.IGNORECASE)
+
+
+def fc2_number(avid: str) -> str | None:
+    match = FC2_ID.fullmatch(avid.strip())
+    return match.group(1) if match else None
+
+
 @dataclass
 class AVMetadata:
+    avid: str
     title: str = ""
     cover: str = ""
-    avid: str = ""
-    actress: dict = field(default_factory=dict)  # 默认空字典
     description: str = ""
     duration: str = ""
     release_date: str = ""
-    keywords = [],
-    fanarts = []
-
-    def __str__(self):
-        # 格式化演员信息
-        actress_str = "\n    ".join(
-            [f"{name} ({avatar})" for name, avatar in self.actress.items()]
-        ) if self.actress else "无"
-
-        # 格式化关键词
-        keywords_str = ", ".join(self.keywords) if self.keywords else "无"
-
-        # 格式化样品图像
-        fanart_str = ", ".join(self.fanarts) if self.fanarts else "无"
-
-        return (
-            "=== 元数据详情 ===\n"
-            f"番号: {self.avid or '未知'}\n"
-            f"标题: {self.title or '未知'}\n"
-            f"发行日期: {self.release_date or '未知'}\n"
-            f"时长: {self.duration or '未知'}\n"
-            f"演员及头像:\n    {actress_str}\n"
-            f"关键词: {keywords_str}\n"
-            f"描述: {self.description or '无'}\n"
-            f"封面URL: {self.cover or '无'}\n"
-            f"样品图像: {fanart_str}\n"
-            "================="
-        )
+    keywords: list[str] = field(default_factory=list)
+    actress: dict[str, str] = field(default_factory=dict)
+    fanarts: list[str] = field(default_factory=list)
+    source: str = ""
 
     def to_json(self, file_path: str, indent: int = 2) -> bool:
         try:
-            path = Path(file_path) if isinstance(file_path, str) else file_path
+            path = Path(file_path)
             path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with path.open('w', encoding='utf-8') as f:
-                json.dump(asdict(self), f, ensure_ascii=False, indent=indent)
+            path.write_text(json.dumps(asdict(self), ensure_ascii=False, indent=indent), encoding="utf-8")
             return True
-        except (IOError, TypeError) as e:
-            logger.error(f"JSON序列化失败: {str(e)}")
+        except (OSError, TypeError) as exc:
+            logger.error(f"儲存 metadata 失敗: {exc}")
             return False
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Referer": "https://www.javbus.com",
-    "Sec-Fetch-Mode": "navigate"
-}
-     
-class Sracper:
-    def __init__(self, path: str, proxy = None, timeout = 15):
-        """
-        :path: 配置的路径，如/vol2/user/missav
-        :avid: 车牌号
-        """
-        self.path = path
-        self.proxy = proxy
-        self.proxies = {
-            'http': proxy,
-            'https': proxy
-        } if proxy else None
+
+class _FC2Page(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.meta: dict[str, str] = {}
+        self.samples: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "meta":
+            key = values.get("property") or values.get("name")
+            if key and values.get("content"):
+                self.meta[key] = values["content"]
+        elif tag == "a" and "data-pdp-sample-thumbnail" in values and values.get("href"):
+            self.samples.append(values["href"])
+
+
+class ArtworkScraper:
+    def __init__(self, path: str, proxy: str | None = None, timeout: int = 15):
+        self.path = Path(path)
+        self.proxies = {"http": proxy, "https": proxy} if proxy else None
         self.timeout = timeout
-        self.domain = "www.javbus.com"
-        self.javbus_settings = configs.get("JavBus", {})
-        self.impersonate = self.javbus_settings.get("Impersonate", "chrome120")
+        settings = configs.get("Fanart", {})
+        self.impersonate = settings.get("Impersonate", "chrome120")
+        self.max_preview_images = max(0, min(int(settings.get("MaxPreviewImages", 20)), 50))
 
-    def _request_headers(self, url: str, referer: str = "") -> dict[str, str]:
-        request_headers = headers.copy()
-        if referer:
-            request_headers["Referer"] = referer
-        configured = browser_headers(self.javbus_settings, project_root, site_name="JavBus")
-        if "User-Agent" in configured:
-            request_headers["User-Agent"] = configured["User-Agent"]
-        if urlparse(url).hostname == self.domain and "Cookie" in configured:
-            request_headers["Cookie"] = configured["Cookie"]
-        return request_headers
+    def _get(self, url: str):
+        response = requests.get(
+            url, headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "*/*",
+            },
+            proxies=self.proxies, timeout=self.timeout,
+            impersonate=self.impersonate, allow_redirects=True,
+        )
+        response.raise_for_status()
+        return response
 
-    @staticmethod
-    def _is_verification_url(url: str) -> bool:
-        return urlparse(url).path.startswith("/doc/driver-verify")
-
-    def scrape(self, avid: str) -> Optional[AVMetadata]:
-        # 获取html
-        url= f"https://{self.domain}/{avid.upper()}"
-        logger.info(url)
-        html = self._fetch_html(url, referer=f"https://{self.domain}/")
-        if html is None:
-            return None
-        logger.info("fetch html succ")
-        
-        # 解析元数据
-        metadata = self._extract(html)
-        if not metadata:
-            return None
-        logger.info(f"parse metadata succ: \n{metadata}")
-
-        # 下载图像
-        if not self.downloadIMG(metadata):
-            return None
-        logger.info(f"download img succ")
-
-        # 生成nfo
-        self.genNFO(metadata)
-        logger.info(f"gennfo succ")
-        return metadata
-
-
-    def _extract(self, html: str) -> Optional[AVMetadata]:
+    def _regular_metadata(self, avid: str) -> AVMetadata | None:
+        url = f"https://r18.dev/videos/vod/movies/detail/-/dvd_id={quote(avid, safe='')}/json"
         try:
-            metadata = AVMetadata()
-            # 0. 提取avid
-            pattern = r'<title>((\d|[A-Z])+-\d+)'
-            avid = re.search(pattern, html).group(1)
-            if not avid:
-                return None
-            logger.debug(avid)
-            # 1. 提取标题
-            title_pattern = r'<title>(.*?) - JavBus</title>'
-            title = re.search(title_pattern, html).group(1)
-            if not title:
-                return None
-            logger.debug(title)
-            # 2. 提取封面图
-            cover_pattern = r'<a class="bigImage" href="([^"]+)"><img src="([^"]+)"'
-            cover = re.search(cover_pattern, html).group(1)
-            if not cover:
-                return None
-            logger.debug(cover)
-            # 3. 提取描述
-            desc_pattern = r'<meta name="description" content="([^"]+)">'
-            desc = re.search(desc_pattern, html).group(1)
-            if not desc:
-                return None
-            logger.debug(desc)
-            # 4. 提取关键字
-            keywords_pattern = r'<meta name="keywords" content="([^"]+)">'
-            keywords = re.search(keywords_pattern, html).group(1).split(',')
-            if not keywords:
-                return None
-            logger.debug(keywords)
-            # 5. 提取发行日期
-            date_pattern = r'<span class="header">發行日期:</span> ([^<]+)'
-            date = re.search(date_pattern, html).group(1).strip()
-            if not date:
-                return None
-            logger.debug(date)
-            # 6. 提取时长
-            duration_pattern = r'<span class="header">長度:</span> ([^<]+)'
-            duration = re.search(duration_pattern, html).group(1).strip()
-            if not duration:
-                return None
-            logger.debug(duration)
-            # 7. 提取演员及头像
-            actors_pattern = r'<a class="avatar-box" href="[^"]+">\s*<div class="photo-frame">\s*<img src="([^"]+)"[^>]+>\s*</div>\s*<span>([^<]+)</span>'
-            actresses = re.findall(actors_pattern, html)
-            logger.debug(actresses)
-            # 匹配样品图像
-            fanart_pattern = r'<a class="sample-box" href="(.*?\.jpg)">'
-            fanarts = re.findall(fanart_pattern, html)
-            if not fanarts:
-                fanarts = []
-
-            metadata.avid = avid
-            metadata.title = title
-            if is_complete_url(cover):
-                metadata.cover = cover
-            else:
-                metadata.cover = f"https://{self.domain}{cover}"
-            metadata.description = desc
-            metadata.keywords = keywords
-            metadata.release_date = date
-            metadata.duration = duration
-            for img, name in actresses:
-                if is_complete_url(img):
-                    metadata.actress[name] = img
-                else:
-                    metadata.actress[name] = f"https://{self.domain}{img}"
-            metadata.fanarts = fanarts
-
-            return metadata
-        
-        except Exception as exc:
-            title = re.search(r"<title>(.*?)</title>", html, re.I | re.S)
-            page_title = title.group(1).strip()[:100] if title else "（沒有標題）"
-            logger.error(f"JavBus 頁面解析失敗，標題: {page_title}；錯誤: {type(exc).__name__}: {exc}")
-            return None
-    
-    def downloadIMG(self, metadata: AVMetadata) -> bool:
-        '''海报+封面+演员头像'''
-        # 下载横版海报
-        prefix = metadata.avid+"-" # Jellyfin海报格式
-        fanartCount = 1
-        if self._download_file(metadata.cover, metadata.avid+"/"+prefix+f"fanart-{fanartCount}.jpg", referer=f"https://{self.domain}/{metadata.avid}"):
-            # 裁剪竖版封面
-            self._crop_img(metadata.avid+"/"+prefix+f"fanart-{fanartCount}.jpg", metadata.avid+"/"+prefix+"poster.jpg")
-        else:
-            logger.error(f"封面下载失败：{metadata.cover}")
-            return False
-        
-        # 下载预览图
-        for fanart in metadata.fanarts:
-            fanartCount += 1
-            self._download_file(fanart, metadata.avid+"/"+prefix+f"fanart-{fanartCount}.jpg", referer=f"https://{self.domain}/{metadata.avid}")
-
-        # 检查演员是否存在，不存在则下载图像
-        for av, url in metadata.actress.items():
-            logger.debug(av)
-            # 判断是否已经存在
-            if os.path.exists(os.path.join(self.path, "thumb", av+".jpg")):
-                logger.info(f"av {av} already exist")
-                continue
-            else:
-                self._download_file(url, os.path.join(self.path, "thumb/"+av+".jpg"), referer=f"https://{self.domain}/{metadata.avid}")
-        return True
-
-    def genNFO(self, metadata: AVMetadata) -> bool:
-        prefix = metadata.avid+"-" # Jellyfin海报格式
-        # 创建XML根节点
-        root = ET.Element("movie")
-        
-        # 基础元数据
-        ET.SubElement(root, "title").text = metadata.title
-        ET.SubElement(root, "plot").text = metadata.description
-        ET.SubElement(root, "outline").text = metadata.description[:100] + "..."
-        
-        # 发行日期处理
-        try:
-            release_date = datetime.strptime(metadata.release_date, "%Y-%m-%d").strftime("%Y-%m-%d")
-            ET.SubElement(root, "premiered").text = release_date
-            ET.SubElement(root, "releasedate").text = release_date
-        except ValueError:
-            pass
-        
-        # 时长转换（分钟）
-        if "分鐘" in metadata.duration:
-            mins = metadata.duration.replace("分鐘", "").strip()
-            ET.SubElement(root, "runtime").text = mins
-        
-        # 海报
-        if metadata.cover:
-            art = ET.SubElement(root, "art")
-            ET.SubElement(art, "poster").text = prefix+"poster.jpg"
-        
-        # 预览
-        for i in range(1, len(metadata.fanarts) + 1):
-            ET.SubElement(art, "fanart").text = prefix+f"fanart-{i}.jpg"
-        
-        # 演员信息
-        for name, _ in metadata.actress.items():
-            actor = ET.SubElement(root, "actor")
-            ET.SubElement(actor, "name").text = name
-            ET.SubElement(actor, "thumb").text = os.path.join(self.path, "thumb/"+name+".jpg")
-        
-        # 类型标签（来自关键词）
-        for genre in metadata.keywords[:5]:  # 最多取5个关键词
-            ET.SubElement(root, "genre").text = genre
-
-        # 转换为格式化的XML
-        xml_str = ET.tostring(root, encoding='utf-8')
-        dom = minidom.parseString(xml_str)
-        
-        # 写入文件
-        with open(os.path.join(self.path, metadata.avid, metadata.avid+".nfo"), 'w', encoding='utf-8') as f:
-            dom.writexml(f, indent="  ", addindent="  ", newl="\n", encoding='utf-8')
-        return True
-
-    def _download_file(self, url: str, filename: str, referer: str = "") -> bool:
-        """通用下载方法，下载到指定位置"""
-        logger.debug(f"download {url} to {os.path.join(self.path, filename)}")
-        try:
-            newHeader = self._request_headers(url, referer)
-            response = requests.get(url, stream=True, impersonate=self.impersonate, proxies=self.proxies,\
-                                    headers=newHeader,timeout=self.timeout, allow_redirects=False)
-            if 300 <= response.status_code < 400:
-                logger.error(f"圖片請求被轉向，未儲存非圖片內容: {urljoin(url, response.headers.get('Location', ''))}")
-                return False
-            response.raise_for_status()
-            if response.headers.get("Content-Type", "").lower().startswith("text/html"):
-                logger.error(f"圖片請求收到 HTML，未儲存非圖片內容: {url}")
-                return False
-            
-            with open(os.path.join(self.path, filename), 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-            return True
-        except Exception as e:
-            logger.error(f"下载失败: {e}")
-            return False
-    
-    def _fetch_html(self, url: str, referer: str = "") -> Optional[str]:
-        try:
-            newHeader = self._request_headers(url, referer)
-            response = requests.get(
-                url,
-                proxies=self.proxies,
-                headers=newHeader,
-                timeout=self.timeout,
-                impersonate=self.impersonate,
-                allow_redirects=False
+            payload = self._get(url).json()
+            content_id = payload.get("content_id", "")
+            if not re.fullmatch(r"[a-zA-Z0-9_]+", content_id):
+                raise ValueError("R18 未提供有效商品 ID")
+            jacket = payload.get("images", {}).get("jacket_image", {})
+            cover = jacket.get("large2", "").strip() or jacket.get("large", "").strip()
+            image_base = f"https://pics.dmm.co.jp/digital/video/{content_id}/"
+            samples = [f"{image_base}{content_id}jp-{i}.jpg" for i in range(1, self.max_preview_images + 1)]
+            return AVMetadata(
+                avid=avid, title=payload.get("title") or avid,
+                cover=cover, release_date=payload.get("release_date") or "",
+                duration=str(payload.get("runtime_minutes") or ""),
+                fanarts=samples, source="R18/FANZA",
             )
-            if 300 <= response.status_code < 400:
-                destination = urljoin(url, response.headers.get("Location", ""))
-                if self._is_verification_url(destination):
-                    logger.error("JavBus 要求年齡／問卷驗證。請先在瀏覽器完成驗證，並設定 JavBus 專用 Cookie 與 User-Agent；若已設定，請更新過期的 Cookie。")
-                else:
-                    logger.error(f"JavBus 頁面被轉向: {destination}")
-                return None
-            response.raise_for_status()
-            if "Age Verification JavBus" in response.text:
-                logger.error("JavBus 回傳驗證頁而非影片頁；請更新 JavBus Cookie 與 User-Agent。")
-                return None
-            return response.text
-        except (requests.exceptions.RequestException, ValueError) as e:
-            logger.error(f"请求失败: {str(e)}")
+        except (requests.exceptions.RequestException, ValueError, KeyError, TypeError, AttributeError) as exc:
+            logger.warning(f"R18/FANZA 資料取得失敗: {avid}: {exc}")
             return None
-    
-    def _crop_img(self, srcname, optname):
-        img = Image.open(os.path.join(self.path, srcname))
-        width, height = img.size
-        if height > width:
-            return
-        target_width = int(height * 565 / 800)
-        # 从右侧开始裁剪
-        left = width - target_width  # 右侧起点
-        right = width
-        top = 0
-        bottom = height
-        # 裁剪并保存
-        cropped_img = img.crop((left, top, right, bottom))
-        cropped_img.save(os.path.join(self.path, optname))
-        logger.debug(f"裁剪完成，尺寸: {cropped_img.size}")
+
+    def _fc2_metadata(self, avid: str, number: str) -> AVMetadata | None:
+        url = f"https://adult.contents.fc2.com/article/{number}/"
+        try:
+            page = _FC2Page()
+            page.feed(self._get(url).text)
+            title = page.meta.get("og:title", "")
+            if title.startswith(f"FC2-PPV-{number}") and page.meta.get("og:image"):
+                return AVMetadata(
+                    avid=avid, title=title, cover=urljoin(url, page.meta["og:image"]),
+                    description=page.meta.get("og:description", ""),
+                    fanarts=list(dict.fromkeys(urljoin(url, image) for image in page.samples))[:self.max_preview_images],
+                    source="FC2 Content Market",
+                )
+            logger.warning(f"FC2 官方商品頁沒有作品圖片: {avid}")
+        except requests.exceptions.RequestException as exc:
+            logger.warning(f"FC2 官方商品頁讀取失敗: {avid}: {exc}")
+
+        # Removed products may retain a cover in the independent catalogue.
+        fallback_url = f"https://fc2cmadb.com/articles/{number}"
+        try:
+            response = self._get(fallback_url)
+            match = re.search(r'<script\s+data-page="app"\s+type="application/json">(.*?)</script>', response.text, re.S)
+            if not match:
+                raise ValueError("找不到 FC2CMADB 商品資料")
+            article = json.loads(match.group(1)).get("props", {}).get("article", {})
+            if str(article.get("video_id")) != number or not article.get("image_url"):
+                raise ValueError("FC2CMADB 商品 ID 或封面無效")
+            return AVMetadata(
+                avid=avid, title=article.get("title") or avid,
+                cover=article["image_url"], release_date=article.get("release_date") or "",
+                duration=article.get("duration") or "", source="FC2CMADB",
+            )
+        except (requests.exceptions.RequestException, ValueError, TypeError) as exc:
+            logger.warning(f"FC2CMADB 備援資料取得失敗: {avid}: {exc}")
+            return None
+
+    def _download_image(self, url: str, target: Path) -> Image.Image | None:
+        if urlparse(url).scheme != "https":
+            logger.warning(f"略過非 HTTPS 圖片: {url}")
+            return None
+        try:
+            response = self._get(url)
+            if not response.headers.get("Content-Type", "").lower().startswith("image/"):
+                raise ValueError("回應不是圖片")
+            with Image.open(BytesIO(response.content)) as original:
+                image = ImageOps.exif_transpose(original).convert("RGB")
+            if image.width < 200 or image.height < 200:
+                raise ValueError(f"圖片尺寸過小 ({image.width}x{image.height})")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(target.name + ".tmp")
+            try:
+                image.save(temporary, format="JPEG", quality=90)
+                os.replace(temporary, target)
+            finally:
+                temporary.unlink(missing_ok=True)
+            return image
+        except (requests.exceptions.RequestException, OSError, ValueError, UnidentifiedImageError) as exc:
+            logger.warning(f"圖片下載失敗: {url}: {exc}")
+            return None
+
+    def _write_artwork(self, metadata: AVMetadata) -> list[str]:
+        folder = self.path / metadata.avid
+        folder.mkdir(parents=True, exist_ok=True)
+        prefix = metadata.avid + "-"
+        downloaded: list[str] = []
+        cover = self._download_image(metadata.cover, folder / f"{prefix}fanart-1.jpg") if metadata.cover else None
+        def save_poster(image: Image.Image) -> None:
+            width, height = image.size
+            if width / height > 565 / 800:
+                target_width = int(height * 565 / 800)
+                image = image.crop((width - target_width, 0, width, height))
+            image.save(folder / f"{prefix}poster.jpg", format="JPEG", quality=90)
+
+        if cover:
+            save_poster(cover)
+            downloaded.append(f"{prefix}fanart-1.jpg")
+
+        for image_url in metadata.fanarts:
+            name = f"{prefix}fanart-{len(downloaded) + 1}.jpg"
+            image = self._download_image(image_url, folder / name)
+            if image:
+                if not downloaded:
+                    save_poster(image)
+                downloaded.append(name)
+            elif metadata.source == "R18/FANZA":
+                # FANZA returns a 90x122 placeholder beyond the end of a gallery.
+                break
+        return downloaded
+
+    def _write_nfo(self, metadata: AVMetadata, artwork: list[str], preserve_existing: bool = False) -> None:
+        path = self.path / metadata.avid / f"{metadata.avid}.nfo"
+        root = None
+        if preserve_existing and path.is_file():
+            try:
+                root = ET.parse(path).getroot()
+                if root.tag != "movie":
+                    raise ValueError("NFO 根節點不是 movie")
+            except (ET.ParseError, ValueError) as exc:
+                logger.warning(f"既有 NFO 無法解析，將重建: {path}: {exc}")
+                root = None
+        if root is None:
+            root = ET.Element("movie")
+            ET.SubElement(root, "title").text = metadata.title
+            ET.SubElement(root, "plot").text = metadata.description
+            ET.SubElement(root, "outline").text = metadata.description[:100]
+            if metadata.release_date:
+                try:
+                    release_date = datetime.strptime(metadata.release_date, "%Y-%m-%d").strftime("%Y-%m-%d")
+                except ValueError:
+                    release_date = ""
+                if release_date:
+                    ET.SubElement(root, "premiered").text = release_date
+                    ET.SubElement(root, "releasedate").text = release_date
+            if metadata.duration:
+                ET.SubElement(root, "runtime").text = metadata.duration
+            for keyword in metadata.keywords[:5]:
+                ET.SubElement(root, "genre").text = keyword
+        if artwork:
+            art = root.find("art")
+            if art is None:
+                art = ET.SubElement(root, "art")
+            else:
+                for item in list(art):
+                    if item.tag in {"poster", "fanart"}:
+                        art.remove(item)
+            if (self.path / metadata.avid / f"{metadata.avid}-poster.jpg").exists():
+                ET.SubElement(art, "poster").text = f"{metadata.avid}-poster.jpg"
+            for name in artwork:
+                ET.SubElement(art, "fanart").text = name
+        temporary = path.with_name(path.name + ".tmp")
+        try:
+            ET.ElementTree(root).write(temporary, encoding="utf-8", xml_declaration=True)
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def scrape(self, avid: str, preserve_existing_nfo: bool = False) -> AVMetadata | None:
+        avid = avid.strip().upper()
+        number = fc2_number(avid)
+        metadata = self._fc2_metadata(avid, number) if number else self._regular_metadata(avid)
+        if not metadata:
+            logger.error(f"找不到 {avid} 的圖片資料")
+            return None
+        logger.info(f"{avid} 使用圖片來源: {metadata.source}")
+        artwork = self._write_artwork(metadata)
+        if not artwork:
+            logger.error(f"{avid} 沒有可下載的封面或預覽圖，保留重試機會")
+            return None
+        self._write_nfo(metadata, artwork, preserve_existing=preserve_existing_nfo)
+        return metadata

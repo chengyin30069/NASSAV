@@ -31,6 +31,7 @@ class NoFanArtFlagTest(unittest.TestCase):
         source.data = data
         metadata = types.ModuleType("metadata")
         metadata.gen_nfo = Mock()
+        metadata.rebuild_fanart = Mock(return_value=[])
 
         with tempfile.TemporaryDirectory() as directory:
             comm = types.ModuleType("src.comm")
@@ -52,13 +53,23 @@ class NoFanArtFlagTest(unittest.TestCase):
                 os.chdir(directory)
                 Path("work").write_text("0", encoding="utf-8")
                 with patch.dict(sys.modules, modules), patch.object(
-                    sys, "argv", ["main.py", "TEST-123", *options]
+                    sys, "argv", ["main.py", *([] if "--rebuild-fanart" in options else ["TEST-123"]), *options]
                 ):
-                    runpy.run_path(str(MAIN), run_name="__main__")
+                    if "--rebuild-fanart" in options:
+                        with self.assertRaises(SystemExit) as stopped:
+                            runpy.run_path(str(MAIN), run_name="__main__")
+                        self.assertEqual(stopped.exception.code, 0)
+                    else:
+                        runpy.run_path(str(MAIN), run_name="__main__")
             finally:
                 os.chdir(old_cwd)
 
-        downloader.downloadM3u8.assert_called_once()
+        if "--rebuild-fanart" in options:
+            downloader.downloadM3u8.assert_not_called()
+            data.initialize_db.assert_not_called()
+            metadata.rebuild_fanart.assert_called_once_with(None)
+        else:
+            downloader.downloadM3u8.assert_called_once()
         return metadata.gen_nfo
 
     def test_default_generates_nfo(self):
@@ -66,6 +77,9 @@ class NoFanArtFlagTest(unittest.TestCase):
 
     def test_no_fan_art_skips_nfo(self):
         self.run_main("--no-fan-art").assert_not_called()
+
+    def test_rebuild_fanart_never_downloads_video(self):
+        self.run_main("--rebuild-fanart").assert_not_called()
 
 
 if __name__ == "__main__":

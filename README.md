@@ -19,7 +19,7 @@ NASSAV 是一个基于 Python 开发的多源影视资源下载管理工具，�
 ## 核心特性
 
 - 🎥 多源下载支持：支持 MissAV、Jable、HohoJ、Memo （持续添加中）等多个数据源
-- 📝 智能元数据管理：从JavBus自动获取影片信息、封面、海报等元数据
+- 📝 智能元数据管理：依番號從 R18/FANZA 或 FC2 取得影片資訊、封面與預覽圖
 - 🔄 队列管理：支持批量下载任务管理。使用sqlite去重，防止重复下载
 - 🌐 远程控制：提供 HTTP API 接口，支持远程控制下载任务
 - 🔒 文件锁机制：确保同一时间只有一个下载任务运行
@@ -135,6 +135,14 @@ python3 main.py <车牌号> -f
 
 若影片沒有fan art可在車號後加 `--no-fan-art`，例如 `docker run ... nassav <車號> --no-fan-art`。此參數會略過整個 `gen_nfo` 後處理，因此也不會產生 NFO；影片下載流程不變。
 
+修復先前沒下載到 fanart 的影片目錄，可執行：
+
+```bash
+docker run --rm -v "<本機存片位置>:<SavePath>" nassav --rebuild-fanart
+```
+
+此模式只掃描 `SavePath` 中已有影片檔、卻沒有 `*-fanart*.jpg` 等圖片的目錄，不會下載影片；既有 NFO 的標題、劇情等資料會保留，只更新圖片欄位。若要強制重建單一目錄（包括已有 fanart 的目錄），可在後面加番號，例如 `nassav --rebuild-fanart FC2-PPV-4826883`。任何待修目錄失敗時，容器會以非零狀態結束。
+
 映像預設以 UID/GID `1000:1000` 執行，需對掛載的下載目錄有寫入權限。如果主機目錄屬於其他 UID/GID，建置時可加入 `--build-arg NASSAV_UID=$(id -u) --build-arg NASSAV_GID=$(id -g)`。
 
 ### 批量下载
@@ -218,20 +226,20 @@ MissAV 请求可以在 `cfg/configs.json` 的 `Cloudflare` 项配置浏览器取
 
 Docker 映像内已包含 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)，`SolverURL` 预设为 `http://127.0.0.1:8191/v1`。下载器只在 MissAV 页面收到挑战时调用浏览器服务，影片片段仍由原有下载流程处理。本机直接运行 `python3 main.py` 时，如需此功能，仍须另外启动 FlareSolverr；不需要时可把 `SolverURL` 设为空字串。
 
-### JavBus 年齡／問卷驗證
+### Fanart 與海報來源
 
-JavBus 若將影片頁轉到 `doc/driver-verify`，需先在瀏覽器完成網站要求的驗證，再將同一瀏覽器對 `www.javbus.com` 的 Cookie 請求頭及 User-Agent，分別放入 `javbus-cookie.txt` 的第一、二行。於 `cfg/configs.json` 加入：
+下載完成後，程式會按番號自動選擇圖片來源。`FC2-PPV-1234567`、`FC2-1234567` 等 FC2 番號使用 FC2 Content Market 的商品封面及預覽圖；官方商品頁找不到時，會嘗試 FC2CMADB 的封面。其他番號使用 R18.dev 的商品資料及 FANZA 的封面、預覽圖。舊的 JavBus 刮削器已停用；既有 `JavBus` 設定不再使用。
+
+可在 `cfg/configs.json` 調整每部影片最多下載的預覽圖數量：
 
 ```json
-"JavBus": {
-    "CookieFile": "javbus-cookie.txt",
-    "Cookie": "",
-    "UserAgent": "",
-    "Impersonate": "chrome120"
+"Fanart": {
+    "Impersonate": "chrome120",
+    "MaxPreviewImages": 20
 }
 ```
 
-修改 `cfg/configs.json` 後需重建映像，或在執行時將設定檔掛載至 `/NASSAV/cfg/configs.json:ro`。Docker 執行時另加 `-v "$PWD/javbus-cookie.txt:/NASSAV/javbus-cookie.txt:ro"`；`CookieFile` 設為空字串時也可直接填 `Cookie`、`UserAgent`。Cookie 僅送往 `www.javbus.com`，不會送給外部圖片 CDN。JavBus 驗證需要有效的瀏覽器會話；FlareSolverr 只能處理其支援的瀏覽器挑戰，不會自動回答 JavBus 問卷。Cookie 過期時需重新在瀏覽器驗證並更新檔案，請勿將 Cookie 提交到版本控制或打包入映像。
+`fanart-1.jpg` 是商品封面，`poster.jpg` 由封面裁切；其餘 fanart 為實際下載成功的預覽圖，NFO 只列出存在的圖片。部分商品沒有公開預覽圖或已下架，這時可能只有封面或完全沒有圖片。修改設定後需重建 Docker 映像，或將設定檔掛載至 `/NASSAV/cfg/configs.json:ro`。`--no-fan-art` 可跳過這段後處理。
 
 ### 下载器配置
 

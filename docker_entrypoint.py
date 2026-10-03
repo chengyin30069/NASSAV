@@ -23,9 +23,7 @@ def stop_process(process: subprocess.Popen) -> None:
 
 
 def main() -> int:
-    solver = subprocess.Popen(
-        [sys.executable, "-u", "/app/flaresolverr.py"], cwd="/app"
-    )
+    solver = None
     downloader = None
     stopping = None
 
@@ -39,28 +37,33 @@ def main() -> int:
     signal.signal(signal.SIGTERM, handle_signal)
 
     try:
-        deadline = time.monotonic() + SOLVER_START_TIMEOUT
-        while time.monotonic() < deadline:
-            if stopping is not None:
-                return 128 + stopping
-            if solver.poll() is not None:
-                print("FlareSolverr exited before becoming ready", file=sys.stderr)
+        if "--rebuild-fanart" not in sys.argv[1:]:
+            solver = subprocess.Popen(
+                [sys.executable, "-u", "/app/flaresolverr.py"], cwd="/app"
+            )
+            deadline = time.monotonic() + SOLVER_START_TIMEOUT
+            while time.monotonic() < deadline:
+                if stopping is not None:
+                    return 128 + stopping
+                if solver.poll() is not None:
+                    print("FlareSolverr exited before becoming ready", file=sys.stderr)
+                    return 1
+                try:
+                    with urlopen(SOLVER_HEALTH, timeout=1) as response:
+                        if response.status == 200:
+                            break
+                except (URLError, TimeoutError):
+                    time.sleep(0.5)
+            else:
+                print("FlareSolverr did not become ready within 60 seconds", file=sys.stderr)
                 return 1
-            try:
-                with urlopen(SOLVER_HEALTH, timeout=1) as response:
-                    if response.status == 200:
-                        break
-            except (URLError, TimeoutError):
-                time.sleep(0.5)
-        else:
-            print("FlareSolverr did not become ready within 60 seconds", file=sys.stderr)
-            return 1
 
         downloader = subprocess.Popen([sys.executable, "main.py", *sys.argv[1:]], cwd="/NASSAV")
         status = downloader.wait()
         return 128 - status if status < 0 else status
     finally:
-        stop_process(solver)
+        if solver is not None:
+            stop_process(solver)
 
 
 if __name__ == "__main__":

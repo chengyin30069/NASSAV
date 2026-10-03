@@ -26,30 +26,26 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--force', action='store_true', help='跳过DB检查，强制执行')
     parser.add_argument('-t', '--target', type=str, help='指定车牌号')
     parser.add_argument('--no-fan-art', action='store_true', help='跳过 gen_nfo 后处理（NFO、fan art 等）')
+    parser.add_argument('--rebuild-fanart', action='store_true', help='修復缺少 fanart 的影片目錄；搭配番號可指定重建單一目錄')
+    parser.add_argument('avid', nargs='?', help='車牌號')
     
-    args, unknown = parser.parse_known_args()
-    if not args and not unknown:
-        logger.error(f"Error: Unknown arguments are not allowed: {args, unknown}")
-        sys.exit(1)
-    
-    # 获取位置参数
-    positional_args = [arg for arg in sys.argv[1:] if not arg.startswith('-')]
-    
-    if len(positional_args) == 1:
-        args.target = positional_args[0]
-    elif args.target is None:
-        logger.error("需要提供车牌号")
-        sys.exit(1)
+    args = parser.parse_args()
+    target = args.target or args.avid
+    if args.rebuild_fanart:
+        failures = rebuild_fanart(target.upper() if target else None)
+        sys.exit(1 if failures else 0)
+    if target is None:
+        parser.error("需要提供車牌號，或使用 --rebuild-fanart")
     
     logger.info(f"Force: {args.force}")
-    logger.info(f"Target: {args.target}")
+    logger.info(f"Target: {target}")
 
     data.initialize_db(downloaded_path, "MissAV")
     if len(sys.argv) < 2:
         print("用法: python main.py <车牌号>")
         sys.exit(1)
 
-    avid = args.target.upper()
+    avid = target.upper()
 
     video_path = os.path.join(save_path, avid, avid + ".mp4")
     if os.path.isfile(video_path):

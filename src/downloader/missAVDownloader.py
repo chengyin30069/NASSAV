@@ -1,5 +1,6 @@
 from .downloaderBase import *
 import re
+from html import unescape
 from typing import Optional, Tuple
 from ..cloudflare import browser_headers
 from .missavHls import download_media
@@ -11,23 +12,34 @@ class MissAVDownloader(Downloader):
 
     def getHTML(self, avid: str) -> Optional[str]:
         '''需要实现的方法：根据avid，构造url并请求，获取html, 返回字符串'''
-        url = f'https://{self.domain}/cn/{avid}-uncensored-leak'.lower()
-        content = self._fetch_html(url)
-        if content: return content
+        for suffix in (f"{avid}-uncensored-leak", f"{avid}-chinese-subtitle", avid):
+            url = f"https://{self.domain}/cn/{suffix}".lower()
+            content = self._fetch_html(url)
+            if content and self._is_target_video_page(content, avid):
+                return content
+            if content:
+                logger.warning(f"略過非 {avid} 影片頁: {url}")
 
-        url = f'https://{self.domain}/cn/{avid}-chinese-subtitle'.lower()
+        url = f"https://{self.domain}/dm13/cn/{avid}".lower()
         content = self._fetch_html(url)
-        if content: return content
-
-        url = f'https://{self.domain}/cn/{avid}'.lower()
-        content = self._fetch_html(url)
-        if content: return content
-
-        url = f'https://{self.domain}/dm13/cn/{avid}'.lower()
-        content = self._fetch_html(url)
-        if content: return content
-
+        if content and self._is_target_video_page(content, avid):
+            return content
+        if content:
+            logger.warning(f"略過非 {avid} 影片頁: {url}")
         return None
+
+    @classmethod
+    def _is_target_video_page(cls, content: str, avid: str) -> bool:
+        if not cls._extract_uuid(content):
+            return False
+        for tag in re.findall(r"<meta\b[^>]*>", content, re.IGNORECASE):
+            if not re.search(r"\bproperty\s*=\s*['\"]og:title['\"]", tag, re.IGNORECASE):
+                continue
+            match = re.search(r"\bcontent\s*=\s*['\"]([^'\"]+)", tag, re.IGNORECASE)
+            if match:
+                title = unescape(match.group(1)).strip()
+                return bool(re.match(rf"^{re.escape(avid)}(?:\W|$)", title, re.IGNORECASE))
+        return False
 
     def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''

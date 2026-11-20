@@ -12,6 +12,9 @@
         "Impersonate": "chrome120",
         "SolverURL": "http://127.0.0.1:8191/v1"
     },
+    "MissAVHLS": {
+        "RequestIntervalSeconds": 4.0
+    },
     "Fanart": {
         "Impersonate": "chrome120",
         "MaxPreviewImages": 20

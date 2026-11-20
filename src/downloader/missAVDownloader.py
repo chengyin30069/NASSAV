@@ -146,6 +146,7 @@ class MissAVDownloader(Downloader):
                 url, video_path, self._media_headers(),
                 configs.get("Cloudflare", {}).get("Impersonate", "chrome110"),
                 self.proxies,
+                request_interval_seconds=configs.get("MissAVHLS", {}).get("RequestIntervalSeconds", 4.0),
             )
             return True
         except (OSError, ValueError, RuntimeError, requests.exceptions.RequestException) as exc:

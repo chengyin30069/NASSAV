@@ -226,6 +226,8 @@ MissAV 请求可以在 `cfg/configs.json` 的 `Cloudflare` 项配置浏览器取
 
 Docker 映像内已包含 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)，`SolverURL` 预设为 `http://127.0.0.1:8191/v1`。下载器只在 MissAV 页面收到挑战时调用浏览器服务，影片片段仍由原有下载流程处理。本机直接运行 `python3 main.py` 时，如需此功能，仍须另外启动 FlareSolverr；不需要时可把 `SolverURL` 设为空字串。
 
+MissAV 影片分段預設使用單一連線依序下載，每次 HTTP 請求（包含 403 後的重試）至少間隔 4 秒。可透過 `cfg/configs.json` 的 `MissAVHLS.RequestIntervalSeconds` 調整秒數；設為 `0` 可停用間隔。這會降低請求頻率，但無法保證網站不再回傳 403。
+
 ### Fanart 與海報來源
 
 下載完成後，程式會按番號自動選擇圖片來源。`FC2-PPV-1234567`、`FC2-1234567` 等 FC2 番號使用 FC2 Content Market 的商品封面及預覽圖；官方商品頁找不到時，會嘗試 FC2CMADB 的封面。其他番號使用 R18.dev 的商品資料及 FANZA 的封面、預覽圖。舊的 JavBus 刮削器已停用；既有 `JavBus` 設定不再使用。

@@ -1,11 +1,11 @@
 """Fetch MissAV HLS media with the same browser profile used for its pages."""
 
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+import math
 import re
 import subprocess
 from tempfile import TemporaryDirectory
-from threading import Lock
+import time
 from urllib.parse import urljoin, urlparse
 
 from curl_cffi import requests
@@ -16,9 +16,27 @@ _URI = re.compile(r'URI="([^"]+)"')
 _IMAGE_HEADERS = (b"\xff\xd8\xff", b"\x89PNG", b"GIF8")
 
 
-def _fetch(url, headers, impersonate, proxies, timeout, session=None):
+class _RequestPacer:
+    """Space HLS segment requests, including retries, like sequential playback."""
+
+    def __init__(self, interval_seconds):
+        self.interval_seconds = float(interval_seconds)
+        if not math.isfinite(self.interval_seconds) or self.interval_seconds < 0:
+            raise ValueError("MissAV HLS request interval must be a nonnegative finite number")
+        self.next_request_at = 0.0
+
+    def wait(self):
+        delay = self.next_request_at - time.monotonic()
+        if delay > 0:
+            time.sleep(delay)
+        self.next_request_at = time.monotonic() + self.interval_seconds
+
+
+def _fetch(url, headers, impersonate, proxies, timeout, session=None, pacer=None):
     client = session or requests
     for attempt in range(3):
+        if pacer is not None:
+            pacer.wait()
         try:
             response = client.get(
                 url, headers=headers, impersonate=impersonate,
@@ -46,11 +64,13 @@ def _fix_ts(data):
     raise ValueError("Cannot locate MPEG-TS data after image prefix")
 
 
-def download_media(playlist_url, video_path, headers, impersonate, proxies=None, timeout=30):
+def download_media(playlist_url, video_path, headers, impersonate, proxies=None, timeout=30,
+                   request_interval_seconds=4.0):
     """Download an HLS media playlist and remux it to MP4."""
     video_path = Path(video_path)
     if video_path.exists():
         raise FileExistsError(f"Video already exists: {video_path}")
+    pacer = _RequestPacer(request_interval_seconds)
 
     playlist = _fetch(playlist_url, headers, impersonate, proxies, timeout).decode("utf-8-sig")
     if "#EXTM3U" not in playlist or "#EXT-X-STREAM-INF" in playlist:
@@ -89,26 +109,18 @@ def download_media(playlist_url, video_path, headers, impersonate, proxies=None,
 
         (temp / "local.m3u8").write_text("\n".join(local_lines) + "\n", encoding="utf-8")
 
-        progress = 0
-        progress_lock = Lock()
-
-        def fetch_group(items):
-            nonlocal progress
-            # A curl handle belongs to one worker and is reused for that worker's requests.
-            with requests.Session() as session:
-                for url, path in items:
-                    data = _fetch(url, headers, impersonate, proxies, timeout, session)
-                    if path.suffix == ".ts":
-                        data = _fix_ts(data)
-                    path.write_bytes(data)
-                    with progress_lock:
-                        progress += 1
-                        if progress % 80 == 0 or progress == len(segments):
-                            logger.info(f"MissAV segments: {progress}/{len(segments)}")
-
-        logger.info(f"Downloading {len(segments)} MissAV segments")
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            list(executor.map(fetch_group, (segments[index::4] for index in range(4))))
+        logger.info(
+            f"Downloading {len(segments)} MissAV segments sequentially "
+            f"(at least {pacer.interval_seconds:g}s between requests)"
+        )
+        with requests.Session() as session:
+            for progress, (url, path) in enumerate(segments, start=1):
+                data = _fetch(url, headers, impersonate, proxies, timeout, session, pacer)
+                if path.suffix == ".ts":
+                    data = _fix_ts(data)
+                path.write_bytes(data)
+                if progress % 80 == 0 or progress == len(segments):
+                    logger.info(f"MissAV segments: {progress}/{len(segments)}")
 
         temporary_video = temp / "video.mp4"
         result = subprocess.run(

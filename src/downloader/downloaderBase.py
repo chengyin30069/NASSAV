@@ -15,6 +15,7 @@ from ..cloudflare import browser_headers, solve_page
 @dataclass
 class AVDownloadInfo:
     m3u8: str = ""
+    direct_url: str = ""
     title: str = ""
     avid: str = ""
 
@@ -23,7 +24,8 @@ class AVDownloadInfo:
             f"=== 元数据详情 ===\n"
             f"番号: {self.avid or '未知'}\n"
             f"标题: {self.title or '未知'}\n"
-            f"M3U8: {self.m3u8 or '无'}"
+            f"M3U8: {self.m3u8 or '无'}\n"
+            f"檔案連結: {self.direct_url or '无'}"
         )
 
     def to_json(self, file_path: str, indent: int = 2) -> bool:

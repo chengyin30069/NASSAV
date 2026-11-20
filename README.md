@@ -228,6 +228,16 @@ Docker 映像内已包含 [FlareSolverr](https://github.com/FlareSolverr/FlareSo
 
 MissAV 影片分段預設使用單一連線依序下載，每次 HTTP 請求（包含 403 後的重試）至少間隔 4 秒。可透過 `cfg/configs.json` 的 `MissAVHLS.RequestIntervalSeconds` 調整秒數；設為 `0` 可停用間隔。這會降低請求頻率，但無法保證網站不再回傳 403。
 
+### MissAV 的 Rapidgator 檔案下載
+
+MissAV 頁面若有 Rapidgator 的一般檔案下載連結，設定授權後會優先使用此連結，不使用磁力連結，也不必先取得 m3u8。支援兩種授權來源：
+
+- Rapidgator 帳號：在執行容器時傳入 `RAPIDGATOR_LOGIN` 與 `RAPIDGATOR_PASSWORD`。
+- [Storage Portal API](https://www.storage-portal.com/docs/download-client-api)：傳入 `STORAGE_PORTAL_API_KEY`。此服務需先取得 API 使用權與流量額度；若兩種授權都設定，可用 `RAPIDGATOR_BACKEND=storage_portal` 指定使用它。
+- 不使用帳號：先在瀏覽器打開 MissAV 頁面上的 Rapidgator 連結，完成免費下載等待與 Turnstile 驗證，複製最後的檔案下載網址。執行容器時傳入 `RAPIDGATOR_DIRECT_URL`、`RAPIDGATOR_DIRECT_FILENAME`（含副檔名）及 `RAPIDGATOR_DIRECT_FILE_ID`（Rapidgator 網址 `/file/` 後的 ID）。若直連綁定瀏覽器資訊，也可傳入 `RAPIDGATOR_DIRECT_COOKIE` 與 `RAPIDGATOR_DIRECT_USER_AGENT`。這個網址可能會過期，需要重新取得。
+
+例如先在主機環境設定所需變數，再於既有 `docker run` 命令中加入 `-e RAPIDGATOR_LOGIN -e RAPIDGATOR_PASSWORD`、`-e STORAGE_PORTAL_API_KEY`，或 `-e RAPIDGATOR_DIRECT_URL -e RAPIDGATOR_DIRECT_FILENAME -e RAPIDGATOR_DIRECT_FILE_ID`。憑證與最終直連不會寫入 `cfg/configs.json` 或下載資訊檔。下載器會以原檔格式儲存影片，支援 `.mp4`、`.mkv`、`.avi`、`.mov`、`.m4v`、`.ts`，並以 HTTP Range 接續中斷的檔案；壓縮檔不會被當成影片。未設定直連或授權時維持原本的 HLS 下載。此容器目前無法自動完成 Rapidgator 免費頁面的 Turnstile 驗證。
+
 ### Fanart 與海報來源
 
 下載完成後，程式會按番號自動選擇圖片來源。`FC2-PPV-1234567`、`FC2-1234567` 等 FC2 番號使用 FC2 Content Market 的商品封面及預覽圖；官方商品頁找不到時，會嘗試 FC2CMADB 的封面。其他番號使用 R18.dev 的商品資料及 FANZA 的封面、預覽圖。舊的 JavBus 刮削器已停用；既有 `JavBus` 設定不再使用。

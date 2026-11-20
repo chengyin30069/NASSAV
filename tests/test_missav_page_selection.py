@@ -21,7 +21,13 @@ class MissAVPageSelectionTest(unittest.TestCase):
         base.project_root = "/NASSAV"
         hls = types.ModuleType("src.downloader.missavHls")
         hls.download_media = Mock()
-        with patch.dict(sys.modules, {"src.downloader.downloaderBase": base, "src.downloader.missavHls": hls}):
+        rapidgator = types.ModuleType("src.downloader.rapidgator")
+        rapidgator.configured_backend = Mock(return_value=None)
+        rapidgator.extract_rapidgator_link = Mock(return_value=None)
+        rapidgator.download_rapidgator = Mock()
+        with patch.dict(sys.modules, {"src.downloader.downloaderBase": base,
+                                      "src.downloader.missavHls": hls,
+                                      "src.downloader.rapidgator": rapidgator}):
             cls.module = importlib.import_module("src.downloader.missAVDownloader")
 
     @classmethod
@@ -47,6 +53,16 @@ class MissAVPageSelectionTest(unittest.TestCase):
             '<script>m3u8|55c950ec6092|8265|400b|c4fc|2b696a73|com|surrit|https|video</script>'
         )
         self.assertFalse(self.module.MissAVDownloader._is_target_video_page(unrelated, "LOVE-122"))
+
+    def test_direct_file_path_does_not_require_hls_playlist(self):
+        downloader = self.module.MissAVDownloader()
+        page = '<meta property="og:title" content="LOVE-122 Example">'
+        link = "https://rapidgator.net/file/72816cb5fb1e1f8cbf88958782795dda"
+        with patch.object(self.module, "configured_backend", return_value="rapidgator"), \
+             patch.object(self.module, "extract_rapidgator_link", return_value=link), \
+             patch.object(downloader, "_get_highest_quality_m3u8", side_effect=AssertionError("HLS should not be fetched")):
+            info = downloader.parseHTML(page)
+        self.assertEqual(info.direct_url, link)
 
 
 if __name__ == "__main__":

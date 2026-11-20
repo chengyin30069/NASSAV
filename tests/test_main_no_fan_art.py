@@ -32,6 +32,7 @@ class NoFanArtFlagTest(unittest.TestCase):
         metadata = types.ModuleType("metadata")
         metadata.gen_nfo = Mock()
         metadata.rebuild_fanart = Mock(return_value=[])
+        metadata.VIDEO_SUFFIXES = {".mp4", ".mkv", ".avi", ".mov", ".m4v", ".ts"}
 
         with tempfile.TemporaryDirectory() as directory:
             comm = types.ModuleType("src.comm")

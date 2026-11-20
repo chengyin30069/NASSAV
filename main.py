@@ -3,6 +3,7 @@ from src.comm import *
 from src import data
 import sys
 import argparse
+from pathlib import Path
 from metadata import *
 
 def append_if_not_duplicate(filename, new_content):
@@ -47,9 +48,11 @@ if __name__ == "__main__":
 
     avid = target.upper()
 
-    video_path = os.path.join(save_path, avid, avid + ".mp4")
-    if os.path.isfile(video_path):
-        logger.info(f"{avid} 视频文件已存在: {video_path}")
+    video_folder = Path(save_path) / avid
+    existing_video = next((video_folder / f"{avid}{suffix}" for suffix in VIDEO_SUFFIXES
+                           if (video_folder / f"{avid}{suffix}").is_file()), None)
+    if existing_video:
+        logger.info(f"{avid} 视频文件已存在: {existing_video}")
         sys.exit(0)
 
     if not args.force:
@@ -99,9 +102,9 @@ if __name__ == "__main__":
                 continue
             logger.info(info)
             if not downloader.downloadM3u8(info.m3u8, avid):
-                logger.error(f"{info.m3u8} 下载视频失败")
+                logger.error(f"{getattr(info, 'direct_url', '') or info.m3u8} 下载视频失败")
                 if count >= len(sorted_downloaders):
-                    raise ValueError(f"{info.m3u8} 下载视频失败")
+                    raise ValueError(f"{getattr(info, 'direct_url', '') or info.m3u8} 下载视频失败")
                 continue
             break
             

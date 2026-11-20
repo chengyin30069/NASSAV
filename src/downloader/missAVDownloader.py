@@ -4,6 +4,7 @@ from html import unescape
 from typing import Optional, Tuple
 from ..cloudflare import browser_headers
 from .missavHls import download_media
+from .rapidgator import configured_backend, download_rapidgator, extract_rapidgator_link
 from urllib.parse import urljoin
 
 class MissAVDownloader(Downloader):
@@ -44,6 +45,13 @@ class MissAVDownloader(Downloader):
     def parseHTML(self, html: str) -> Optional[AVDownloadInfo]:
         '''需要实现的方法：根据html，解析出元数据，返回AVMetadata'''
         missavMetadata = AVDownloadInfo()
+        self._rapidgator_url = extract_rapidgator_link(html)
+        if self._rapidgator_url and configured_backend():
+            missavMetadata.direct_url = self._rapidgator_url
+            logger.info("MissAV Rapidgator file link found; using direct file download")
+            if not self._extract_metadata(html, missavMetadata):
+                return None
+            return missavMetadata
 
         # 1. 提取m3u8
         if uuid := self._extract_uuid(html):
@@ -142,6 +150,12 @@ class MissAVDownloader(Downloader):
     def downloadM3u8(self, url: str, avid: str) -> bool:
         video_path = os.path.join(self.path, avid, avid + ".mp4")
         try:
+            if getattr(self, "_rapidgator_url", None) and configured_backend():
+                download_rapidgator(
+                    self._rapidgator_url, os.path.join(self.path, avid), avid,
+                    self.proxies, configs.get("Cloudflare", {}).get("Impersonate", "chrome110"),
+                )
+                return True
             download_media(
                 url, video_path, self._media_headers(),
                 configs.get("Cloudflare", {}).get("Impersonate", "chrome110"),

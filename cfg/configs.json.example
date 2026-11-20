@@ -12,33 +12,55 @@
         "Impersonate": "chrome120",
         "SolverURL": "http://127.0.0.1:8191/v1"
     },
-    "MissAVHLS": {
-        "RequestIntervalSeconds": 4.0
-    },
     "Fanart": {
         "Impersonate": "chrome120",
         "MaxPreviewImages": 20
     },
     "Downloader": [
         {
-            "downloaderName": "MissAV",
-            "domain": "missav.ai",
-            "weight": 300
-        },
-        {
-            "downloaderName": "Jable",
-            "domain": "jable.tv",
-            "weight": 500
+            "downloaderName": "Whos",
+            "domain": "whos.tv",
+            "weight": 700
         },
         {
             "downloaderName": "HohoJ",
             "domain": "hohoj.tv",
+            "weight": 600
+        },
+        {
+            "downloaderName": "123AV",
+            "domain": "123av.com",
+            "weight": 500
+        },
+        {
+            "downloaderName": "7mmtv",
+            "domain": "7mmtv.sx",
             "weight": 400
+        },
+        {
+            "downloaderName": "NJAV",
+            "domain": "njavtv.com",
+            "weight": 300
+        },
+        {
+            "downloaderName": "JavHDPorn",
+            "domain": "www.javhdporn.net",
+            "weight": 0
+        },
+        {
+            "downloaderName": "MissAV",
+            "domain": "missav.ai",
+            "weight": 0
+        },
+        {
+            "downloaderName": "Jable",
+            "domain": "jable.tv",
+            "weight": 0
         },
         {
             "downloaderName": "Memo",
             "domain": "memojav.com",
-            "weight": 600
+            "weight": 0
         },
         {
             "downloaderName": "AvToday",

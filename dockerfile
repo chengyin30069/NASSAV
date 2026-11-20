@@ -22,7 +22,7 @@ ARG NASSAV_UID=1000
 ARG NASSAV_GID=1000
 
 RUN apk add --no-cache \
-      chromium chromium-chromedriver dumb-init ffmpeg python3 \
+      aria2 chromium chromium-chromedriver dumb-init ffmpeg fzf python3 \
       xauth xvfb && \
     addgroup -S -g "$NASSAV_GID" flaresolverr && \
     adduser -S -u "$NASSAV_UID" -G flaresolverr -h /app flaresolverr && \

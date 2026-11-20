@@ -121,12 +121,12 @@ python3 main.py <车牌号> -f
 
 1. Build Docker (初次使用才需要)
 ```bash
-(sudo) docker build -t nassav .
+(sudo) docker build -t nassav -f dockerfile .
 ```
 
 2. 下載
 ```bash
-(sudo) docker run --rm -v "<本機存片位置>:<cfg/configs.json裡設定的SavePath>" \
+(sudo) docker run --rm -it -v "<本機存片位置>:<cfg/configs.json裡設定的SavePath>" \
   -v "<missav-cookie.txt>:/NASSAV/missav-cookie.txt:ro" \
   nassav <車號>
 ```
@@ -226,7 +226,46 @@ MissAV 请求可以在 `cfg/configs.json` 的 `Cloudflare` 项配置浏览器取
 
 Docker 映像内已包含 [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)，`SolverURL` 预设为 `http://127.0.0.1:8191/v1`。下载器只在 MissAV 页面收到挑战时调用浏览器服务，影片片段仍由原有下载流程处理。本机直接运行 `python3 main.py` 时，如需此功能，仍须另外启动 FlareSolverr；不需要时可把 `SolverURL` 设为空字串。
 
-MissAV 影片分段預設使用單一連線依序下載，每次 HTTP 請求（包含 403 後的重試）至少間隔 4 秒。可透過 `cfg/configs.json` 的 `MissAVHLS.RequestIntervalSeconds` 調整秒數；設為 `0` 可停用間隔。這會降低請求頻率，但無法保證網站不再回傳 403。
+共用的 HLS 下載器使用最多 4 個並行工作執行緒，分段請求無固定間隔。HLS 伺服器回傳 HTTP 401 或 403 時，日誌會指出遭拒的階段，並結束該次下載嘗試。
+
+### Whos.tv 下載器
+
+在 `cfg/configs.json` 的 `Downloader` 陣列加入
+`{"downloaderName": "Whos", "domain": "whos.tv", "weight": 700}`。
+重建 Docker 映像後，可用原本的番號指令下載。Whos.tv 會從對應影片頁的主播放器取得 HLS，並儲存為 `<番號>/<番號>.mp4`。權重越高越先嘗試。
+
+### 123AV 與 Sukebei 備援
+
+預設下載順序為 **Whos.tv → HohoJ → 123AV → 7mmtv → NJAV**。123AV 使用 Docker 裡的 Chromium 讀取內嵌播放器載入的 HLS。
+
+所有串流來源失敗後，程式才會到 Sukebei Nyaa 搜尋番號。用 `fzf` 查看標題、大小及做種數，按 Enter 選擇後由 `aria2c` 下載，按 Esc 取消。種子檔案保留原始檔名和目錄，下載到 `<SavePath>/<番號>/torrent/<種子 ID>/`。非互動執行或取消選擇時會保留原本的排隊行為。
+
+直接執行 `docker run` 時需加 `-it` 才會顯示選單，`download.sh` 會在終端機中自動加上。
+
+### 7mmtv 下載器
+
+在 `cfg/configs.json` 的 `Downloader` 陣列加入
+`{"downloaderName": "7mmtv", "domain": "7mmtv.sx", "weight": 400}`，
+重建 Docker 映像後，用原本的番號指令執行。下載器核對搜尋結果的番號，從主播放器選擇最高畫質的 HLS，並儲存為 `<番號>/<番號>.mp4`。
+
+### NJAV 下載器
+
+在 `cfg/configs.json` 的 `Downloader` 陣列加入
+`{"downloaderName": "NJAV", "domain": "njavtv.com", "weight": 300}`。
+重建 Docker 映像後，原本的番號指令會在 7mmtv 之後嘗試 NJAV。它使用 NJAV 的影片頁和 Surrit HLS 下載 MP4。
+
+### HohoJ 下載器
+
+在 `cfg/configs.json` 的 `Downloader` 陣列設定
+`{"downloaderName": "HohoJ", "domain": "hohoj.tv", "weight": 600}`。
+重建映像後，用原本的番號指令執行。下載器核對搜尋結果，使用內嵌播放器的 HLS 保存 `<番號>/<番號>.mp4`。
+
+### JAV HD Porn 下載器
+
+在 `cfg/configs.json` 的 `Downloader` 陣列加入
+`{"downloaderName": "JavHDPorn", "domain": "www.javhdporn.net", "weight": 200}`，
+再用原本的番號指令執行。權重越高越早嘗試，`0` 代表停用。
+下載器使用站內搜尋比對番號，支援主播放器公開提供的 HTTPS HLS 或 MP4。動態播放器需要 Docker 映像內的 Chromium 和 Selenium。
 
 ### MissAV 的 Rapidgator 檔案下載
 

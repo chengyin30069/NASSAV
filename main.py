@@ -74,44 +74,42 @@ if __name__ == "__main__":
     with open("work", "w") as f:
         f.write("1")
     
-    mgr = downloaderMgr.DownloaderMgr()
     try:
-        # 按照配置好的下载器顺序，依次尝试
-        if len(sorted_downloaders) == 0:
-            raise ValueError(f"cfg没有配置下载器：{sorted_downloaders}")
-        
-        count = 0
-        for it in sorted_downloaders:
-            count += 1
-            downloader = mgr.GetDownloader(it["downloaderName"])
-            if not downloader.setDomain(it["domain"]): # 设置成配置中的域名
-                logger.error(f"下载器 {downloader.getDownloaderName()} 的域名没有配置")
+        mgr = downloaderMgr.DownloaderMgr()
+        attempted_missav_sources = set()
+        for entry in sorted_downloaders:
+            name = entry["downloaderName"]
+            downloader = mgr.GetDownloader(name)
+            if downloader is None or not downloader.setDomain(entry["domain"]):
+                logger.warning(f"下載器 {name} 或其網域設定無效")
                 continue
-            if downloader is None:
-                logger.error(f"下载器{args.plugin} 没有找到")
-                raise ValueError(f"下载器{args.plugin} 没有找到")
-            logger.info(f"尝试使用Downloader: {downloader.getDownloaderName()} 下载")
-            lastDownloader = downloader
 
-            # 下载失败使用下一个downloader
+            logger.info(f"尝试使用Downloader: {name} 下载")
             info = downloader.downloadInfo(avid)
             if not info:
                 logger.error(f"{avid} 下载元数据失败")
-                if count >= len(sorted_downloaders):
-                    raise ValueError(f"{avid} 下载元数据失败")
                 continue
+
+            source = getattr(info, "direct_url", "") or info.m3u8
+            if name == "MissAV" and source:
+                if source in attempted_missav_sources:
+                    logger.warning(f"MissAV {entry['domain']} 指向本次已下載失敗的相同來源")
+                    continue
+                attempted_missav_sources.add(source)
             logger.info(info)
-            if not downloader.downloadM3u8(info.m3u8, avid):
-                logger.error(f"{getattr(info, 'direct_url', '') or info.m3u8} 下载视频失败")
-                if count >= len(sorted_downloaders):
-                    raise ValueError(f"{getattr(info, 'direct_url', '') or info.m3u8} 下载视频失败")
-                continue
-            break
-            
-        # 元数据只尝试下载一次，且只使用配置中权重最大的刮削器
+            if downloader.downloadM3u8(info.m3u8, avid):
+                break
+            logger.error(f"{source} 下载视频失败")
+        else:
+            from src.downloader.sukebei import download_from_sukebei
+
+            if download_from_sukebei(avid, video_folder):
+                sys.exit(0)
+            raise ValueError(f"{avid} 所有來源未能完成下載")
+
         if not args.no_fan_art:
             gen_nfo(avid)
-            
+
     except ValueError as e:
         logger.error(e)
         if append_if_not_duplicate(queue_path, avid):

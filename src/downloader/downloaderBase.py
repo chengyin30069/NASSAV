@@ -47,6 +47,7 @@ headers = {
 }
 
 class Downloader(ABC):
+    use_page_solver = False
     """
     使用方式：
     1. downloadInfo生成元数据，并序列化到download_info.json
@@ -171,7 +172,8 @@ class Downloader(ABC):
                 timeout=self.timeout,
                 impersonate=impersonate,
             )
-            if (missav_request and response.status_code == 403 and
+            solver_request = self.use_page_solver and hostname == self.domain
+            if ((missav_request or solver_request) and response.status_code == 403 and
                     response.headers.get("cf-mitigated") == "challenge"):
                 solver_url = configs.get("Cloudflare", {}).get("SolverURL", "")
                 if solver_url:
